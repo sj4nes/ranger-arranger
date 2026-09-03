@@ -90,19 +90,16 @@ jobs:
         id: release
         run: |
           BUMP="${{ github.event.inputs.bump || 'patch' }}"
-          # Dry-run first to capture the computed version/tag
-          OUTPUT=$(cargo release $BUMP --no-confirm --no-publish 2>&1 || true)
+          OUTPUT=$(cargo release $BUMP --no-confirm --no-publish --execute 2>&1)
           echo "$OUTPUT"
           VERSION=$(echo "$OUTPUT" | grep -oE ' releasing [0-9]+\.[0-9]+\.[0-9]+' | awk '{print $2}')
           TAG="v$VERSION"
           if [ -z "$VERSION" ]; then
-            echo "::error::Failed to determine release version from cargo-release dry-run"
+            echo "::error::Failed to determine release version from cargo-release output"
             exit 1
           fi
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
-          # Execute the release: bumps Cargo.toml, updates changelog, commits, tags, pushes
-          cargo release $BUMP --no-confirm --no-publish --execute
 
   package:
     name: Package extension
