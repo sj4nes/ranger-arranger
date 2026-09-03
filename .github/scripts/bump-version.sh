@@ -59,7 +59,6 @@ fi
 git commit -m "chore: bump version to $NEXT"
 git tag "v$NEXT"
 
-# If PAT_TOKEN is provided, use it for the push
 if [ -n "${PAT_TOKEN:-}" ] && [ -n "${GITHUB_REPOSITORY:-}" ]; then
   git remote set-url origin "https://x-access-token:${PAT_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
 fi
