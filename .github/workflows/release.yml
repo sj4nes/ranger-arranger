@@ -86,42 +86,9 @@ jobs:
       - name: Bump version
         id: bump
         run: |
-          BUMP="${{ github.event.inputs.bump || 'patch' }}"
-          CURRENT=$(grep '^version = ' Cargo.toml | sed 's/version = "\(.*\)"/\1/')
-          echo "Current version: $CURRENT"
-
-          # Compute next version
-          case "$BUMP" in
-            patch)
-              NEXT=$(echo "$CURRENT" | awk -F. '{print $1"."$2"."$3+1}')
-              ;;
-            minor)
-              NEXT=$(echo "$CURRENT" | awk -F. '{print $1"."$2+1".0"}')
-              ;;
-            major)
-              NEXT=$(echo "$CURRENT" | awk -F. '{print $1+1".0.0"}')
-              ;;
-          esac
-          echo "Next version: $NEXT"
-
-          # Bump Cargo.toml / Cargo.lock
-          sed -i "s|^version = \".*\"|version = \"$NEXT\"|" Cargo.toml
-          cargo update -p vsql_ranger_arranger
-
-          # Update CHANGELOG.md
-          if [ -f CHANGELOG.md ]; then
-            # Move [Unreleased] section to new version header
-            sed -i "s/^## \[Unreleased\]$/## [$NEXT] - $(date +%Y-%m-%d)/" CHANGELOG.md
-            # Add new [Unreleased] section at the top
-            sed -i '1a\\n## [Unreleased]\n' CHANGELOG.md
-          fi
-
-          # Commit, tag, push
-          git add Cargo.toml Cargo.lock CHANGELOG.md
-          git commit -m "chore: bump version to $NEXT"
-          git tag "v$NEXT"
-          git push origin main --tags
-
+          chmod +x .github/scripts/bump-version.sh
+          .github/scripts/bump-version.sh "${{ github.event.inputs.bump || 'patch' }}"
+          NEXT=$(grep '^version = ' Cargo.toml | sed 's/version = "\(.*\)"/\1/')
           echo "version=$NEXT" >> "$GITHUB_OUTPUT"
           echo "tag=v$NEXT" >> "$GITHUB_OUTPUT"
 
