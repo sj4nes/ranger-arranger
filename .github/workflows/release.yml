@@ -88,6 +88,11 @@ jobs:
           git config user.email "action@github.com"
           git config user.name "GitHub Action"
 
+      - name: Configure authenticated remote
+        run: |
+          chmod +x .github/scripts/setup-git-remote.sh
+          PAT_TOKEN="${{ secrets.PAT_TOKEN }}" GITHUB_REPOSITORY="${{ github.repository }}" .github/scripts/setup-git-remote.sh
+
       - name: Bump version
         id: bump
         run: |
