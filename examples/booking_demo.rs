@@ -29,7 +29,9 @@ fn main() -> mysql::Result<()> {
          (1, DATERANGE_MAKE('2026-01-25', '2026-01-27', '[)'), 'Team retro')",
     )?;
 
-    println!("\n==> Checking availability for 2026-01-12 to 2026-01-14 (should conflict with booking 1)");
+    println!(
+        "\n==> Checking availability for 2026-01-12 to 2026-01-14 (should conflict with booking 1)"
+    );
     let conflict: Vec<(i32, Option<String>, i32)> = conn.query(
         "SELECT room, title, DATERANGE_OVERLAPS(booked, DATERANGE_MAKE('2026-01-12', '2026-01-14', '[)')) AS overlaps FROM bookings WHERE room = 1",
     )?;
@@ -46,20 +48,14 @@ fn main() -> mysql::Result<()> {
     let mut free_start = window_start.clone();
     for (start_date, end_date) in &bookings {
         if start_date >= &free_start {
-            println!(
-                "  room=1 free_window=[{}, {})",
-                free_start, start_date
-            );
+            println!("  room=1 free_window=[{}, {})", free_start, start_date);
         }
         if end_date > &free_start {
             free_start = end_date.clone();
         }
     }
     if free_start < window_end {
-        println!(
-            "  room=1 free_window=[{}, {})",
-            free_start, window_end
-        );
+        println!("  room=1 free_window=[{}, {})", free_start, window_end);
     }
 
     println!("\n==> Verifying a proposed booking fits inside the room's availability...");

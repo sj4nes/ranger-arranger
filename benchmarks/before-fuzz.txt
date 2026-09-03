@@ -1,0 +1,141 @@
+   Compiling vsql_ranger_arranger v0.1.0 (/Users/sjanes/work26/ranger-arranger/vsql_ranger_arranger)
+    Finished `bench` profile [optimized] target(s) in 1.31s
+     Running benches/engine_bench.rs (target/release/deps/engine_bench-7fd44506190190e1)
+Benchmarking encode/int8
+Benchmarking encode/int8: Warming up for 3.0000 s
+Benchmarking encode/int8: Collecting 100 samples in estimated 5.0004 s (42M iterations)
+Benchmarking encode/int8: Analyzing
+encode/int8             time:   [114.69 ns 114.84 ns 115.00 ns]
+                        change: [-21.745% -18.329% -16.285%] (p = 0.00 < 0.05)
+                        Performance has improved.
+Found 3 outliers among 100 measurements (3.00%)
+  1 (1.00%) low mild
+  2 (2.00%) high mild
+Benchmarking encode/int4
+Benchmarking encode/int4: Warming up for 3.0000 s
+Benchmarking encode/int4: Collecting 100 samples in estimated 5.0005 s (40M iterations)
+Benchmarking encode/int4: Analyzing
+encode/int4             time:   [124.85 ns 125.20 ns 125.56 ns]
+                        change: [-15.707% -15.055% -14.516%] (p = 0.00 < 0.05)
+                        Performance has improved.
+Found 2 outliers among 100 measurements (2.00%)
+  2 (2.00%) high mild
+Benchmarking encode/date
+Benchmarking encode/date: Warming up for 3.0000 s
+Benchmarking encode/date: Collecting 100 samples in estimated 5.0004 s (9.9M iterations)
+Benchmarking encode/date: Analyzing
+encode/date             time:   [495.88 ns 497.26 ns 498.61 ns]
+                        change: [-1.3832% -1.0287% -0.6479%] (p = 0.00 < 0.05)
+                        Change within noise threshold.
+Found 1 outliers among 100 measurements (1.00%)
+  1 (1.00%) high mild
+Benchmarking encode/datetime
+Benchmarking encode/datetime: Warming up for 3.0000 s
+Benchmarking encode/datetime: Collecting 100 samples in estimated 5.0021 s (6.1M iterations)
+Benchmarking encode/datetime: Analyzing
+encode/datetime         time:   [804.15 ns 806.12 ns 808.20 ns]
+                        change: [+0.7464% +1.3322% +2.1084%] (p = 0.00 < 0.05)
+                        Change within noise threshold.
+Found 3 outliers among 100 measurements (3.00%)
+  2 (2.00%) high mild
+  1 (1.00%) high severe
+
+Benchmarking decode/int8
+Benchmarking decode/int8: Warming up for 3.0000 s
+Benchmarking decode/int8: Collecting 100 samples in estimated 5.0003 s (50M iterations)
+Benchmarking decode/int8: Analyzing
+decode/int8             time:   [99.106 ns 99.364 ns 99.612 ns]
+                        change: [-1.2076% -0.8703% -0.5376%] (p = 0.00 < 0.05)
+                        Change within noise threshold.
+Benchmarking decode/date
+Benchmarking decode/date: Warming up for 3.0000 s
+Benchmarking decode/date: Collecting 100 samples in estimated 5.0015 s (12M iterations)
+Benchmarking decode/date: Analyzing
+decode/date             time:   [405.76 ns 407.02 ns 408.47 ns]
+                        change: [+1.2557% +1.6069% +1.9603%] (p = 0.00 < 0.05)
+                        Performance has regressed.
+Found 2 outliers among 100 measurements (2.00%)
+  2 (2.00%) high mild
+Benchmarking decode/datetime
+Benchmarking decode/datetime: Warming up for 3.0000 s
+Benchmarking decode/datetime: Collecting 100 samples in estimated 5.0007 s (7.3M iterations)
+Benchmarking decode/datetime: Analyzing
+decode/datetime         time:   [683.63 ns 685.89 ns 688.39 ns]
+                        change: [+1.0414% +1.3626% +1.6569%] (p = 0.00 < 0.05)
+                        Performance has regressed.
+Found 1 outliers among 100 measurements (1.00%)
+  1 (1.00%) high mild
+
+Benchmarking to_range/int8
+Benchmarking to_range/int8: Warming up for 3.0000 s
+Benchmarking to_range/int8: Collecting 100 samples in estimated 5.0000 s (657M iterations)
+Benchmarking to_range/int8: Analyzing
+to_range/int8           time:   [7.6138 ns 7.6750 ns 7.7556 ns]
+                        change: [+1.5989% +2.0059% +2.5379%] (p = 0.00 < 0.05)
+                        Performance has regressed.
+Found 2 outliers among 100 measurements (2.00%)
+  1 (1.00%) high mild
+  1 (1.00%) high severe
+Benchmarking to_range/date
+Benchmarking to_range/date: Warming up for 3.0000 s
+Benchmarking to_range/date: Collecting 100 samples in estimated 5.0000 s (656M iterations)
+Benchmarking to_range/date: Analyzing
+to_range/date           time:   [7.5951 ns 7.6220 ns 7.6507 ns]
+                        change: [+0.8813% +1.2263% +1.5997%] (p = 0.00 < 0.05)
+                        Change within noise threshold.
+Found 1 outliers among 100 measurements (1.00%)
+  1 (1.00%) high mild
+
+Benchmarking algebra/overlaps
+Benchmarking algebra/overlaps: Warming up for 3.0000 s
+Benchmarking algebra/overlaps: Collecting 100 samples in estimated 5.0000 s (2.0B iterations)
+Benchmarking algebra/overlaps: Analyzing
+algebra/overlaps        time:   [2.4677 ns 2.4739 ns 2.4802 ns]
+                        change: [+1.3757% +1.7271% +2.0695%] (p = 0.00 < 0.05)
+                        Performance has regressed.
+Found 1 outliers among 100 measurements (1.00%)
+  1 (1.00%) high severe
+Benchmarking algebra/intersect
+Benchmarking algebra/intersect: Warming up for 3.0000 s
+Benchmarking algebra/intersect: Collecting 100 samples in estimated 5.0000 s (992M iterations)
+Benchmarking algebra/intersect: Analyzing
+algebra/intersect       time:   [5.0231 ns 5.0353 ns 5.0473 ns]
+                        change: [+0.5188% +0.8208% +1.1141%] (p = 0.00 < 0.05)
+                        Change within noise threshold.
+Benchmarking algebra/merge
+Benchmarking algebra/merge: Warming up for 3.0000 s
+Benchmarking algebra/merge: Collecting 100 samples in estimated 5.0000 s (1.6B iterations)
+Benchmarking algebra/merge: Analyzing
+algebra/merge           time:   [3.1640 ns 3.1753 ns 3.1880 ns]
+                        change: [+1.0251% +1.3502% +1.7252%] (p = 0.00 < 0.05)
+                        Performance has regressed.
+Found 1 outliers among 100 measurements (1.00%)
+  1 (1.00%) high mild
+
+Benchmarking setop_serialize/date_old_string_rt
+Benchmarking setop_serialize/date_old_string_rt: Warming up for 3.0000 s
+Benchmarking setop_serialize/date_old_string_rt: Collecting 100 samples in estimated 5.0033 s (5.5M iterations)
+Benchmarking setop_serialize/date_old_string_rt: Analyzing
+setop_serialize/date_old_string_rt
+                        time:   [901.67 ns 903.97 ns 906.15 ns]
+Benchmarking setop_serialize/date_new_direct
+Benchmarking setop_serialize/date_new_direct: Warming up for 3.0000 s
+Benchmarking setop_serialize/date_new_direct: Collecting 100 samples in estimated 5.0000 s (210M iterations)
+Benchmarking setop_serialize/date_new_direct: Analyzing
+setop_serialize/date_new_direct
+                        time:   [23.703 ns 23.765 ns 23.825 ns]
+Benchmarking setop_serialize/datetime_old_string_rt
+Benchmarking setop_serialize/datetime_old_string_rt: Warming up for 3.0000 s
+Benchmarking setop_serialize/datetime_old_string_rt: Collecting 100 samples in estimated 5.0078 s (3.2M iterations)
+Benchmarking setop_serialize/datetime_old_string_rt: Analyzing
+setop_serialize/datetime_old_string_rt
+                        time:   [1.5495 µs 1.5543 µs 1.5595 µs]
+Benchmarking setop_serialize/datetime_new_direct
+Benchmarking setop_serialize/datetime_new_direct: Warming up for 3.0000 s
+Benchmarking setop_serialize/datetime_new_direct: Collecting 100 samples in estimated 5.0001 s (211M iterations)
+Benchmarking setop_serialize/datetime_new_direct: Analyzing
+setop_serialize/datetime_new_direct
+                        time:   [23.702 ns 23.756 ns 23.811 ns]
+Found 1 outliers among 100 measurements (1.00%)
+  1 (1.00%) high mild
+

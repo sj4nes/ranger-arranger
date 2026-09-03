@@ -43,9 +43,10 @@ outdated:
 # Notes:
 #   - --deny unmaintained hard-fails on unmaintained crates
 #   - --ignore RUSTSEC-2024-0436 allows the transitive `paste` dep from the vendored SDK
+#   - --ignore RUSTSEC-2026-0253 allows `lru` 0.16.4, which is pinned by the `mysql` crate's `lru = ^0.16.3` dependency and cannot be upgraded independently
 audit:
     cargo install cargo-audit
-    cargo audit --deny unmaintained --ignore RUSTSEC-2024-0436
+    cargo audit --deny unmaintained --ignore RUSTSEC-2024-0436 --ignore RUSTSEC-2026-0253
 
 # Run all release gates locally (does not package)
 release-check: ci outdated audit
