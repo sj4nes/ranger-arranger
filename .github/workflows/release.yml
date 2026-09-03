@@ -67,6 +67,7 @@ jobs:
 
   release:
     name: Bump version and tag
+    needs: quality
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.bump.outputs.version }}
