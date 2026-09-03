@@ -1,0 +1,4 @@
+# actionlint configuration
+# Custom runner labels not recognized by actionlint's built-in list
+runner-labels:
+  - ubuntu-24.04-arm64
