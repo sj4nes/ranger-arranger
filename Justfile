@@ -117,6 +117,10 @@ dev-server-stop:
 clean:
     cargo clean
 
+# Run bash unit tests for release/bump-version.sh
+test-bump-version:
+    bash .github/scripts/test-bump-version.sh
+
 # Show help
 help:
     @echo "Available targets:"
@@ -132,5 +136,6 @@ help:
     @echo "  release-check - Run full release quality gate locally"
     @echo "  package       - Build .veb extension package (needs VILLAGESQL_BUILD_DIR)"
     @echo "  dev-server    - Start a local VillageSQL dev server with this extension loaded"
+    @echo "  test-bump-version - Run bash unit tests for the version bump script"
     @echo "  clean         - Remove build artifacts"
     @echo "  help          - Show this help"
