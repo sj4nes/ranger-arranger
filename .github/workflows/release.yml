@@ -88,7 +88,7 @@ jobs:
         run: |
           chmod +x .github/scripts/bump-version.sh
           .github/scripts/bump-version.sh "${{ github.event.inputs.bump || 'patch' }}"
-          NEXT=$(grep '^version = ' Cargo.toml | sed 's/version = "\(.*\)"/\1/')
+          NEXT=$(grep -m 1 '^version = ' Cargo.toml | sed 's/version = "\(.*\)"/\1/')
           echo "version=$NEXT" >> "$GITHUB_OUTPUT"
           echo "tag=v$NEXT" >> "$GITHUB_OUTPUT"
 
