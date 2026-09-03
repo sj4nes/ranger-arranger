@@ -59,9 +59,6 @@ fi
 git commit -m "chore: bump version to $NEXT"
 git tag "v$NEXT"
 
-# Push using token if available
-if [ -n "${PAT_TOKEN:-}" ] && [ -n "${GITHUB_REPOSITORY:-}" ]; then
-  git push "https://x-access-token:${PAT_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" main --tags
-else
-  git push origin main --tags
-fi
+# Output version for workflow to capture
+echo "version=$NEXT" >> "$GITHUB_OUTPUT"
+echo "tag=v$NEXT" >> "$GITHUB_OUTPUT"
