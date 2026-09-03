@@ -10,7 +10,16 @@ BUMP="$1"
 CARGO_TOML="Cargo.toml"
 CHANGELOG="CHANGELOG.md"
 
-CURRENT=$(grep -m 1 '^version = ' "$CARGO_TOML" | sed 's/version = "\(.*\)"/\1/')
+CURRENT=$(awk '
+/^\[package\]/{in_pkg=1; next}
+in_pkg && /^version = /{
+  gsub(/.*version = "/, "")
+  gsub(/".*/, "")
+  print
+  exit
+}
+/^\[/{in_pkg=0}
+' "$CARGO_TOML")
 MAJOR=$(echo "$CURRENT" | cut -d. -f1)
 MINOR=$(echo "$CURRENT" | cut -d. -f2)
 PATCH=$(echo "$CURRENT" | cut -d. -f3)
