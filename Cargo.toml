@@ -19,7 +19,7 @@ crate-type = ["cdylib", "rlib"]
 villagesql = { path = "vendor/vsql-rust-sdk/villagesql" }
 
 [dependencies.chrono]
-version = "0.1.2"
+version = "0.4.45"
 
 [dev-dependencies]
 proptest = "1"
