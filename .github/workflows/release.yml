@@ -101,7 +101,7 @@ jobs:
         run: |
           BUMP="${{ github.event.inputs.bump || 'patch' }}"
           # Dry-run first to capture the computed version/tag
-          OUTPUT=$(cargo release $BUMP --dry-run --no-confirm 2>&1 || true)
+          OUTPUT=$(cargo release $BUMP --no-confirm --no-publish 2>&1 || true)
           echo "$OUTPUT"
           VERSION=$(echo "$OUTPUT" | grep -oE ' releasing [0-9]+\.[0-9]+\.[0-9]+' | awk '{print $2}')
           TAG="v$VERSION"
@@ -112,7 +112,7 @@ jobs:
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
           # Execute the release: bumps Cargo.toml, updates changelog, commits, tags, pushes
-          cargo release $BUMP --no-confirm --execute
+          cargo release $BUMP --no-confirm --no-publish --execute
 
       - name: Build extension package
         run: cargo vsql install
