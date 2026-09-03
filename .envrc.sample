@@ -1,0 +1,2 @@
+# Copy this and change for your system
+export VILLAGESQL_BUILD_DIR=[path to your build]

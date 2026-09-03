@@ -1,0 +1,25 @@
+[package]
+name = "ranger-arranger-fuzz"
+version = "0.0.0"
+publish = false
+edition = "2021"
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+arbitrary = { version = "1", features = ["derive"] }
+vsql_ranger_arranger = { path = ".." }
+
+[[bin]]
+name = "bytes"
+path = "fuzz_targets/bytes.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "algebra"
+path = "fuzz_targets/algebra.rs"
+test = false
+doc = false

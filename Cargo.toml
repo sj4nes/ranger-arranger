@@ -1,0 +1,32 @@
+[package]
+name = "vsql_ranger_arranger"
+version = "0.1.0"
+edition = "2024"
+license = "GPL-2.0"
+description = "Range-type extension for VillageSQL/VEF: canonical INT8RANGE, INT4RANGE, DATERANGE, and DATETIMERANGE with predicates, accessors, and set operations."
+readme = "README.md"
+repository = "https://github.com/villagesql/vsql_ranger_arranger"
+authors = ["ranger-arranger"]
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+# AD-9: pin the local vsql-rust-sdk git checkout (0.0.1 dev snapshot) — it is ahead
+# of the published crates.io 0.0.1 (has buffer_size + sql_query preview). The
+# published crate's func! macro is positional; the local checkout's is the named
+# (buffer_size: / deterministic:) form this code uses.
+villagesql = { path = "../vendor/vsql-rust-sdk/villagesql" }
+
+[dependencies.chrono]
+version = "0.4"
+
+[dev-dependencies]
+proptest = "1"
+criterion = "0.5"
+arbitrary = { version = "1", features = ["derive"] }
+mysql = "28"
+
+[[bench]]
+name = "engine_bench"
+harness = false
