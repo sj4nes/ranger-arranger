@@ -10,7 +10,7 @@ BUMP="$1"
 CARGO_TOML="Cargo.toml"
 CHANGELOG="CHANGELOG.md"
 
-CURRENT=$(grep '^version = ' "$CARGO_TOML" | sed 's/version = "\(.*\)"/\1/')
+CURRENT=$(grep -m 1 '^version = ' "$CARGO_TOML" | sed 's/version = "\(.*\)"/\1/')
 MAJOR=$(echo "$CURRENT" | cut -d. -f1)
 MINOR=$(echo "$CURRENT" | cut -d. -f2)
 PATCH=$(echo "$CURRENT" | cut -d. -f3)
@@ -35,7 +35,6 @@ content = re.sub(r'^version = ".*"', 'version = "' + version + '"', content, fla
 with open(path, "w") as f:
     f.write(content)
 PY
-cargo update -p vsql_ranger_arranger
 
 if [ -f "$CHANGELOG" ]; then
   TODAY=$(date +%Y-%m-%d)
@@ -53,7 +52,10 @@ with open(path, "w") as f:
 PY
 fi
 
-git add "$CARGO_TOML" Cargo.lock "$CHANGELOG"
+git add "$CARGO_TOML" "$CHANGELOG"
+if [ -f Cargo.lock ]; then
+  git add Cargo.lock
+fi
 git commit -m "chore: bump version to $NEXT"
 git tag "v$NEXT"
 if git remote get-url origin >/dev/null 2>&1; then

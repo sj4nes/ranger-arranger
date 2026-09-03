@@ -24,6 +24,9 @@ version = "0.1.0"
 edition = "2021"
 
 [lib]
+
+[dependencies.chrono]
+version = "0.4"
 EOF
 
 mkdir -p "$WORK/src"
@@ -63,6 +66,9 @@ version = "0.1.0"
 edition = "2021"
 
 [lib]
+
+[dependencies.chrono]
+version = "0.4"
 EOF
 
 mkdir -p "$WORK/src"
