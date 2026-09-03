@@ -105,7 +105,8 @@ jobs:
           echo "Next version: $NEXT"
 
           # Bump Cargo.toml / Cargo.lock
-          sed -i "s/^version = \"$CURRENT\"/version = \"$NEXT\"/" Cargo.toml
+          ESCAPED_CURRENT=$(printf '%s\n' "$CURRENT" | sed 's/[\.]/\\\./g')
+          sed -i "s/^version = \"$ESCAPED_CURRENT\"/version = \"$NEXT\"/" Cargo.toml
           cargo update -p vsql_ranger_arranger
 
           # Update CHANGELOG.md

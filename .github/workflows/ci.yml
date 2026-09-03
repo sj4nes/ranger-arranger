@@ -35,6 +35,11 @@ jobs:
       - name: Check formatting
         run: cargo fmt --all -- --check
 
+      - name: Lint GitHub Actions workflows
+        run: |
+          curl -sSfL https://raw.githubusercontent.com/rhysd/actionlint/main/scripts/download-actionlint.bash | bash -s -- 1.7.1
+          ./actionlint -color
+
       - name: Run clippy
         run: cargo clippy --all-targets --all-features -- -D warnings
 
