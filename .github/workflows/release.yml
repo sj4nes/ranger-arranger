@@ -78,6 +78,7 @@ jobs:
           submodules: true
           token: ${{ secrets.GITHUB_TOKEN }}
           fetch-depth: 0
+          fetch-tags: false
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -115,6 +116,7 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           ref: ${{ needs.release.outputs.tag }}
           fetch-depth: 0
+          fetch-tags: false
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
