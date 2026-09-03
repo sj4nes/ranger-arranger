@@ -134,7 +134,7 @@ jobs:
         id: veb
         run: |
           cargo vsql install
-          VEB=$(ls target/veb_output_directory/*.veb | head -n 1)
+          VEB=$(find target/veb_output_directory -name '*.veb' -print -quit)
           ARCHIVE="target/veb_output_directory/vsql-ranger-arranger-${{ needs.release.outputs.version }}-${{ matrix.arch }}.veb"
           cp "$VEB" "$ARCHIVE"
           echo "path=$ARCHIVE" >> "$GITHUB_OUTPUT"
@@ -148,7 +148,7 @@ jobs:
 
   github-release:
     name: Create GitHub Release
-    needs: package
+    needs: [release, package]
     runs-on: ubuntu-latest
     steps:
       - name: Prepare release notes
