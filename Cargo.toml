@@ -16,7 +16,7 @@ crate-type = ["cdylib", "rlib"]
 # of the published crates.io 0.0.1 (has buffer_size + sql_query preview). The
 # published crate's func! macro is positional; the local checkout's is the named
 # (buffer_size: / deterministic:) form this code uses.
-villagesql = { path = "../vendor/vsql-rust-sdk/villagesql" }
+villagesql = { path = "vendor/vsql-rust-sdk/villagesql" }
 
 [dependencies.chrono]
 version = "0.4"

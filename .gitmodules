@@ -1,0 +1,3 @@
+[submodule "vendor/vsql-rust-sdk"]
+	path = vendor/vsql-rust-sdk
+	url = https://github.com/villagesql/vsql-rust-sdk.git
