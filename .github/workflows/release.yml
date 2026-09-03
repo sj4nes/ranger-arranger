@@ -96,23 +96,13 @@ jobs:
   package:
     name: Package extension
     needs: release
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - os: ubuntu-latest
-            arch: x86_64
-          - os: ubuntu-24.04-arm64
-            arch: arm64
-    outputs:
-      veb_path: ${{ steps.veb.outputs.path }}
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout sources
         uses: actions/checkout@v4
         with:
           submodules: true
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.PAT_TOKEN }}
           ref: ${{ needs.release.outputs.tag }}
           fetch-depth: 0
 
@@ -135,14 +125,14 @@ jobs:
         run: |
           cargo vsql install
           VEB=$(find target/veb_output_directory -name '*.veb' -print -quit)
-          ARCHIVE="target/veb_output_directory/vsql-ranger-arranger-${{ needs.release.outputs.version }}-${{ matrix.arch }}.veb"
+          ARCHIVE="target/veb_output_directory/vsql-ranger-arranger-${{ needs.release.outputs.version }}-x86_64.veb"
           cp "$VEB" "$ARCHIVE"
           echo "path=$ARCHIVE" >> "$GITHUB_OUTPUT"
 
       - name: Upload release artifact
         uses: actions/upload-artifact@v4
         with:
-          name: vsql-ranger-arranger-${{ matrix.arch }}
+          name: vsql-ranger-arranger-x86_64
           path: ${{ steps.veb.outputs.path }}
           retention-days: 90
 
@@ -161,7 +151,6 @@ jobs:
 
           ### Artifacts
           - \`vsql-ranger-arranger-${VERSION}-x86_64.veb\` (Linux x86_64)
-          - \`vsql-ranger-arranger-${VERSION}-arm64.veb\` (Linux arm64)
           EOF
 
       - name: Download all artifacts

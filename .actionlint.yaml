@@ -1,2 +1,2 @@
-runner-labels:
-  - ubuntu-24.04
+# actionlint configuration
+runner-labels: []
