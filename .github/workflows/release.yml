@@ -90,6 +90,8 @@ jobs:
 
       - name: Bump version
         id: bump
+        env:
+          PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
         run: |
           chmod +x .github/scripts/bump-version.sh
           .github/scripts/bump-version.sh "${{ github.event.inputs.bump || 'patch' }}"
