@@ -43,6 +43,13 @@ cat > "$WORK/CHANGELOG.md" <<'EOF'
 - Initial release.
 EOF
 
+cat > "$WORK/manifest.json" <<'EOF'
+{
+  "name": "vsql_ranger_arranger",
+  "version": "0.1.0"
+}
+EOF
+
 cd "$WORK"
 
 git init
@@ -54,6 +61,7 @@ echo "=== Test: patch bump ==="
 "$BUMP_SCRIPT" patch
 
 grep -q '^version = "0.1.1"' Cargo.toml || fail "Cargo.toml version not bumped to 0.1.1"
+grep -q '"version": "0.1.1"' manifest.json || fail "manifest.json version not bumped to 0.1.1"
 grep -q '^## \[0.1.1\]' CHANGELOG.md || fail "CHANGELOG.md missing [0.1.1] header"
 grep -q '^## \[Unreleased\]' CHANGELOG.md || fail "CHANGELOG.md missing [Unreleased] after bump"
 pass "patch bump"
@@ -85,10 +93,18 @@ cat > "$WORK/CHANGELOG.md" <<'EOF'
 - Initial release.
 EOF
 
+cat > "$WORK/manifest.json" <<'EOF'
+{
+  "name": "vsql_ranger_arranger",
+  "version": "0.1.0"
+}
+EOF
+
 echo "=== Test: minor bump ==="
 "$BUMP_SCRIPT" minor
 
 grep -q '^version = "0.2.0"' Cargo.toml || fail "Cargo.toml version not bumped to 0.2.0"
+grep -q '"version": "0.2.0"' manifest.json || fail "manifest.json version not bumped to 0.2.0"
 grep -q '^## \[0.2.0\]' CHANGELOG.md || fail "CHANGELOG.md missing [0.2.0] header"
 pass "minor bump"
 
@@ -109,10 +125,18 @@ cat > "$WORK/CHANGELOG.md" <<'EOF'
 - Initial release.
 EOF
 
+cat > "$WORK/manifest.json" <<'EOF'
+{
+  "name": "vsql_ranger_arranger",
+  "version": "0.1.0"
+}
+EOF
+
 echo "=== Test: major bump ==="
 "$BUMP_SCRIPT" major
 
 grep -q '^version = "1.0.0"' Cargo.toml || fail "Cargo.toml version not bumped to 1.0.0"
+grep -q '"version": "1.0.0"' manifest.json || fail "manifest.json version not bumped to 1.0.0"
 grep -q '^## \[1.0.0\]' CHANGELOG.md || fail "CHANGELOG.md missing [1.0.0] header"
 pass "major bump"
 

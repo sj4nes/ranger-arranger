@@ -9,6 +9,7 @@ fi
 BUMP="$1"
 CARGO_TOML="Cargo.toml"
 CHANGELOG="CHANGELOG.md"
+MANIFEST="manifest.json"
 
 CURRENT=$(awk '
 /^\[package\]/{in_pkg=1; next}
@@ -40,9 +41,33 @@ version = sys.argv[1]
 path = sys.argv[2]
 with open(path, "r") as f:
     content = f.read()
-content = re.sub(r'^version = ".*"', 'version = "' + version + '"', content, flags=re.MULTILINE)
+# Only update the version under [package], not dependencies
+lines = content.splitlines()
+in_pkg = False
+for i, line in enumerate(lines):
+    if line.startswith("[package]"):
+        in_pkg = True
+    elif line.startswith("[") and not line.startswith("[package]"):
+        in_pkg = False
+    if in_pkg and line.startswith("version = "):
+        lines[i] = f'version = "{version}"'
+        break
+content = "\n".join(lines) + "\n"
 with open(path, "w") as f:
     f.write(content)
+PY
+
+# Update manifest.json version
+python3 - <<'PY' "$NEXT" "$MANIFEST"
+import json, sys
+version = sys.argv[1]
+path = sys.argv[2]
+with open(path, "r") as f:
+    data = json.load(f)
+data["version"] = version
+with open(path, "w") as f:
+    json.dump(data, f, indent=2)
+    f.write("\n")
 PY
 
 if [ -f "$CHANGELOG" ]; then
@@ -61,7 +86,7 @@ with open(path, "w") as f:
 PY
 fi
 
-git add "$CARGO_TOML" "$CHANGELOG"
+git add "$CARGO_TOML" "$CHANGELOG" "$MANIFEST"
 if [ -f Cargo.lock ]; then
   git add Cargo.lock
 fi
@@ -69,5 +94,5 @@ git commit -m "chore: bump version to $NEXT"
 git tag "v$NEXT"
 
 # Output version for workflow to capture
-echo "version=$NEXT" >> "$GITHUB_OUTPUT"
-echo "tag=v$NEXT" >> "$GITHUB_OUTPUT"
+if [ -n "${GITHUB_OUTPUT:-}" ]; then echo "version=$NEXT" >> "$GITHUB_OUTPUT"; fi
+if [ -n "${GITHUB_OUTPUT:-}" ]; then echo "tag=v$NEXT" >> "$GITHUB_OUTPUT"; fi
