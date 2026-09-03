@@ -114,7 +114,7 @@ jobs:
         with:
           submodules: true
           token: ${{ secrets.GITHUB_TOKEN }}
-          ref: ${{ needs.release.outputs.tag }}
+          ref: main
           fetch-depth: 0
           fetch-tags: false
 
