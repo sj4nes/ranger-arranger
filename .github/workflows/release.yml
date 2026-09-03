@@ -59,12 +59,12 @@ jobs:
           cargo audit --deny unmaintained --ignore RUSTSEC-2024-0436 --ignore RUSTSEC-2026-0253 # paste is unmaintained but only used transitively via the vendored vsql-rust-sdk; lru is blocked by mysql crate's lru = ^0.16.3 dependency, both tracked separately
 
   release:
-    name: Create release via cargo-release
+    name: Bump version and tag
     needs: quality
     runs-on: ubuntu-latest
     outputs:
-      version: ${{ steps.release.outputs.version }}
-      tag: ${{ steps.release.outputs.tag }}
+      version: ${{ steps.bump.outputs.version }}
+      tag: ${{ steps.bump.outputs.tag }}
     steps:
       - name: Checkout sources
         uses: actions/checkout@v4
@@ -78,28 +78,51 @@ jobs:
         with:
           toolchain: stable
 
-      - name: Install cargo-release
-        run: cargo install cargo-release
-
       - name: Configure git identity
         run: |
           git config user.email "action@github.com"
           git config user.name "GitHub Action"
 
-      - name: Release with cargo-release
-        id: release
+      - name: Bump version
+        id: bump
         run: |
           BUMP="${{ github.event.inputs.bump || 'patch' }}"
-          OUTPUT=$(cargo release $BUMP --no-confirm --no-publish --execute 2>&1)
-          echo "$OUTPUT"
-          VERSION=$(echo "$OUTPUT" | grep -oE ' releasing [0-9]+\.[0-9]+\.[0-9]+' | awk '{print $2}')
-          TAG="v$VERSION"
-          if [ -z "$VERSION" ]; then
-            echo "::error::Failed to determine release version from cargo-release output"
-            exit 1
+          CURRENT=$(grep '^version = ' Cargo.toml | sed 's/version = "\(.*\)"/\1/')
+          echo "Current version: $CURRENT"
+
+          # Compute next version
+          case "$BUMP" in
+            patch)
+              NEXT=$(echo "$CURRENT" | awk -F. '{print $1"."$2"."$3+1}')
+              ;;
+            minor)
+              NEXT=$(echo "$CURRENT" | awk -F. '{print $1"."$2+1".0"}')
+              ;;
+            major)
+              NEXT=$(echo "$CURRENT" | awk -F. '{print $1+1".0.0"}')
+              ;;
+          esac
+          echo "Next version: $NEXT"
+
+          # Bump Cargo.toml / Cargo.lock
+          cargo set-version "$NEXT"
+
+          # Update CHANGELOG.md
+          if [ -f CHANGELOG.md ]; then
+            # Move [Unreleased] section to new version header
+            sed -i "s/^## \[Unreleased\]$/## [$NEXT] - $(date +%Y-%m-%d)/" CHANGELOG.md
+            # Add new [Unreleased] section at the top
+            sed -i '1a\\n## [Unreleased]\n' CHANGELOG.md
           fi
-          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+
+          # Commit, tag, push
+          git add Cargo.toml Cargo.lock CHANGELOG.md
+          git commit -m "chore: bump version to $NEXT"
+          git tag "v$NEXT"
+          git push origin main --tags
+
+          echo "version=$NEXT" >> "$GITHUB_OUTPUT"
+          echo "tag=v$NEXT" >> "$GITHUB_OUTPUT"
 
   package:
     name: Package extension
