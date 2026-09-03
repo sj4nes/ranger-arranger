@@ -143,7 +143,7 @@ jobs:
         run: |
           cargo vsql install
           VEB=$(find target/veb_output_directory -name '*.veb' -print -quit)
-          ARCHIVE="target/veb_output_directory/vsql-ranger-arranger-${{ needs.release.outputs.version }}-x86_64.veb"
+          ARCHIVE="$HOME/.villagesql/veb_output_directory/vsql-ranger-arranger-${{ needs.release.outputs.version }}-x86_64.veb"
           cp "$VEB" "$ARCHIVE"
           echo "path=$ARCHIVE" >> "$GITHUB_OUTPUT"
 
