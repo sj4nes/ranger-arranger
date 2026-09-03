@@ -135,6 +135,9 @@ jobs:
       - name: Push changes
         run: git push origin HEAD
 
+      - name: Install cargo-vsql
+        run: cargo install --path vendor/vsql-rust-sdk/cargo-vsql
+
       - name: Build extension package
         id: veb
         run: |
