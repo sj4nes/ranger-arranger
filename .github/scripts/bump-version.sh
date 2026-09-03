@@ -25,13 +25,32 @@ esac
 NEXT="$MAJOR.$MINOR.$PATCH"
 echo "Bumping $CURRENT -> $NEXT"
 
-perl -pi -e "s/^version\\s*=\\s*\".*\"/version = \\\"$NEXT\\\"/" "$CARGO_TOML"
+python3 - <<'PY' "$NEXT" "$CARGO_TOML"
+import re, sys
+version = sys.argv[1]
+path = sys.argv[2]
+with open(path, "r") as f:
+    content = f.read()
+content = re.sub(r'^version = ".*"', 'version = "' + version + '"', content, flags=re.MULTILINE)
+with open(path, "w") as f:
+    f.write(content)
+PY
 cargo update -p vsql_ranger_arranger
 
 if [ -f "$CHANGELOG" ]; then
   TODAY=$(date +%Y-%m-%d)
-  perl -pi -e "s/^## \\[Unreleased\\]/## [$NEXT] - $TODAY/" "$CHANGELOG"
-  printf '\n## [Unreleased]\n' | cat - "$CHANGELOG" > "$CHANGELOG.tmp" && mv "$CHANGELOG.tmp" "$CHANGELOG"
+  python3 - <<'PY' "$NEXT" "$TODAY" "$CHANGELOG"
+import re, sys
+version = sys.argv[1]
+date = sys.argv[2]
+path = sys.argv[3]
+with open(path, "r") as f:
+    content = f.read()
+content = re.sub(r'^## \[Unreleased\]', '## [' + version + '] - ' + date, content, flags=re.MULTILINE)
+content = "\n## [Unreleased]\n" + content
+with open(path, "w") as f:
+    f.write(content)
+PY
 fi
 
 git add "$CARGO_TOML" Cargo.lock "$CHANGELOG"
