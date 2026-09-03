@@ -1,6 +1,6 @@
 [package]
 name = "vsql_ranger_arranger"
-version = "0.1.1"
+version = "0.1.2"
 edition = "2024"
 license = "GPL-2.0"
 description = "Range-type extension for VillageSQL/VEF: canonical INT8RANGE, INT4RANGE, DATERANGE, and DATETIMERANGE with predicates, accessors, and set operations."
@@ -19,7 +19,7 @@ crate-type = ["cdylib", "rlib"]
 villagesql = { path = "vendor/vsql-rust-sdk/villagesql" }
 
 [dependencies.chrono]
-version = "0.1.1"
+version = "0.1.2"
 
 [dev-dependencies]
 proptest = "1"
