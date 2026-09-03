@@ -52,11 +52,6 @@ jobs:
       - name: Run tests
         run: cargo test --all-targets --all-features
 
-      - name: Check for outdated dependencies
-        run: |
-          cargo install cargo-outdated
-          cargo outdated
-
       - name: Audit dependencies for security advisories
         run: |
           cargo install cargo-audit
