@@ -105,7 +105,8 @@ jobs:
           echo "Next version: $NEXT"
 
           # Bump Cargo.toml / Cargo.lock
-          cargo set-version "$NEXT"
+          sed -i "s/^version = \"$CURRENT\"/version = \"$NEXT\"/" Cargo.toml
+          cargo update -p vsql_ranger_arranger
 
           # Update CHANGELOG.md
           if [ -f CHANGELOG.md ]; then
