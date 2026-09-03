@@ -38,7 +38,7 @@ jobs:
       - name: Lint GitHub Actions workflows
         run: |
           curl -sSfL https://raw.githubusercontent.com/rhysd/actionlint/main/scripts/download-actionlint.bash | bash -s -- 1.7.1
-          ./actionlint -color -config .actionlint.yaml
+          ./actionlint -color -config-file .actionlint.yaml
 
       - name: Run clippy
         run: cargo clippy --all-targets --all-features -- -D warnings
