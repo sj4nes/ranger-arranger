@@ -39,6 +39,11 @@ jobs:
       - name: Check formatting
         run: cargo fmt --all -- --check
 
+      - name: Lint GitHub Actions workflows
+        run: |
+          curl -sSfL https://raw.githubusercontent.com/rhysd/actionlint/main/scripts/download-actionlint.bash | bash -s -- 1.7.1
+          ./actionlint -color
+
       - name: Run clippy
         run: cargo clippy --all-targets --all-features -- -D warnings
 
@@ -78,11 +83,10 @@ jobs:
         with:
           toolchain: stable
 
-      - name: Configure git identity and remote
+      - name: Configure git identity
         run: |
           git config user.email "action@github.com"
           git config user.name "GitHub Action"
-          git remote set-url origin https://x-access-token:${{ secrets.PAT_TOKEN }}@github.com/${{ github.repository }}.git
 
       - name: Bump version
         id: bump
