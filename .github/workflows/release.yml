@@ -71,22 +71,12 @@ jobs:
         with:
           submodules: true
           token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: stable
-
-      - name: Cache cargo registry and build artifacts
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-
 
       - name: Install cargo-release
         run: cargo install cargo-release
@@ -114,37 +104,89 @@ jobs:
           # Execute the release: bumps Cargo.toml, updates changelog, commits, tags, pushes
           cargo release $BUMP --no-confirm --no-publish --execute
 
+  package:
+    name: Package extension
+    needs: release
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            arch: x86_64
+          - os: ubuntu-24.04-arm64
+            arch: arm64
+    outputs:
+      veb_path: ${{ steps.veb.outputs.path }}
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v4
+        with:
+          submodules: true
+          token: ${{ secrets.GITHUB_TOKEN }}
+          ref: ${{ needs.release.outputs.tag }}
+          fetch-depth: 0
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo registry and build artifacts
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+
       - name: Build extension package
-        run: cargo vsql install
+        id: veb
+        run: |
+          cargo vsql install
+          VEB=$(ls target/veb_output_directory/*.veb | head -n 1)
+          ARCHIVE="target/veb_output_directory/vsql-ranger-arranger-${{ needs.release.outputs.version }}-${{ matrix.arch }}.veb"
+          cp "$VEB" "$ARCHIVE"
+          echo "path=$ARCHIVE" >> "$GITHUB_OUTPUT"
 
       - name: Upload release artifact
         uses: actions/upload-artifact@v4
         with:
-          name: vsql-ranger-arranger-veb
-          path: target/veb_output_directory/*.veb
+          name: vsql-ranger-arranger-${{ matrix.arch }}
+          path: ${{ steps.veb.outputs.path }}
           retention-days: 90
 
-      - name: Create GitHub Release
-        if: success()
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ steps.release.outputs.tag }}
-          name: ${{ steps.release.outputs.tag }}
-          body_path: /tmp/release-notes.md
-          files: |
-            target/veb_output_directory/*.veb
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
+  github-release:
+    name: Create GitHub Release
+    needs: package
+    runs-on: ubuntu-latest
+    steps:
       - name: Prepare release notes
-        if: always()
         run: |
-          VERSION="${{ steps.release.outputs.version }}"
+          VERSION="${{ needs.release.outputs.version }}"
           cat > /tmp/release-notes.md <<EOF
           ## $VERSION
 
           See [CHANGELOG.md](https://github.com/${{ github.repository }}/blob/main/CHANGELOG.md) for details.
 
           ### Artifacts
-          - \`vsql-ranger-arranger-${VERSION}.veb\` (VillageSQL extension package)
+          - \`vsql-ranger-arranger-${VERSION}-x86_64.veb\` (Linux x86_64)
+          - \`vsql-ranger-arranger-${VERSION}-arm64.veb\` (Linux arm64)
           EOF
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ needs.release.outputs.tag }}
+          name: ${{ needs.release.outputs.tag }}
+          body_path: /tmp/release-notes.md
+          files: |
+            artifacts/**/*.veb
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
