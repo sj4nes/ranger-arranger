@@ -56,4 +56,8 @@ fi
 git add "$CARGO_TOML" Cargo.lock "$CHANGELOG"
 git commit -m "chore: bump version to $NEXT"
 git tag "v$NEXT"
-git push origin main --tags
+if git remote get-url origin >/dev/null 2>&1; then
+  git push origin main --tags
+else
+  echo "Skipping push: no origin remote configured"
+fi
