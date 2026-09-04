@@ -1,6 +1,6 @@
 {
   "name": "vsql_ranger_arranger",
-  "version": "0.1.8",
+  "version": "0.1.9",
   "description": "Range-type extension for VillageSQL/VEF: INT8RANGE, INT4RANGE, DATERANGE, DATETIMERANGE with canonical storage, predicates, accessors, and set operators.",
   "author": "Simon Janes <simonjanes@fastmail.com>",
   "license": "GPL-2.0"

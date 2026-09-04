@@ -1,6 +1,6 @@
 [package]
 name = "vsql_ranger_arranger"
-version = "0.1.8"
+version = "0.1.9"
 edition = "2024"
 license = "GPL-2.0"
 description = "Range-type extension for VillageSQL/VEF: canonical INT8RANGE, INT4RANGE, DATERANGE, and DATETIMERANGE with predicates, accessors, and set operations."
