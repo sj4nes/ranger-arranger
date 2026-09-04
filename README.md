@@ -174,7 +174,11 @@ Always review the diff before committing. The `.result` file is the contract —
 
 ### Note on skill omission
 
-This extension was built in ignorance of the `vsql-extension-builder` skill. The test suite and CI gates were built to actual correctness standards rather than to the skill's checklist. The absence of skill-prescribed tracking artifacts (`.claude/tracking/`, CTO review pass, simplification agents) is a process gap worth closing for future extensions, not a claim about this one's quality.
+This extension was built in ignorance of the `vsql-extension-builder` skill
+and the test suite and CI gates were put together without reading it first.
+The absence of skill-prescribed tracking artifacts (`.claude/tracking/`,
+independent review pass, simplification agents) is a process gap worth
+closing for future extensions, not a claim about this extension.
 
 ## Demo: conference room booking (Rust + `mysql` crate)
 

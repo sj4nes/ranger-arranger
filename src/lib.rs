@@ -24,7 +24,7 @@ use func::predicates::{pred_binary, pred_flag};
 use func::setops::{difference_for, intersect_for, length_for, merge_for, union_for};
 
 // Null guard for VDF impl entry points. Every VDF impl checks this before
-// delegating to its helper, matching the CTO checklist requirement that null
+// delegating to its helper, matching the release checklist requirement that null
 // input is rejected at the impl boundary, not only inside helpers.
 fn guard_null(args: &[InValue]) -> Option<VdfReturn> {
     if args.iter().any(|v| matches!(v, InValue::Null)) {
