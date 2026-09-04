@@ -8,3 +8,6 @@ vendor/*/target/
 
 # Local env
 .envrc
+
+# Skill tracking scratchpads (never ship)
+.claude/

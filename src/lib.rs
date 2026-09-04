@@ -247,6 +247,33 @@ fn int8_hash(bytes: &[u8]) -> u64 {
     h.finish()
 }
 
+// INT4RANGE hash: same stable-hash-of-encoded-bytes strategy.
+fn int4_hash(bytes: &[u8]) -> u64 {
+    use std::collections::hash_map::DefaultHasher;
+    use std::hash::{Hash, Hasher};
+    let mut h = DefaultHasher::new();
+    bytes.hash(&mut h);
+    h.finish()
+}
+
+// DATERANGE hash: same stable-hash-of-encoded-bytes strategy.
+fn date_hash(bytes: &[u8]) -> u64 {
+    use std::collections::hash_map::DefaultHasher;
+    use std::hash::{Hash, Hasher};
+    let mut h = DefaultHasher::new();
+    bytes.hash(&mut h);
+    h.finish()
+}
+
+// DATETIMERANGE hash: same stable-hash-of-encoded-bytes strategy.
+fn dt_hash(bytes: &[u8]) -> u64 {
+    use std::collections::hash_map::DefaultHasher;
+    use std::hash::{Hash, Hasher};
+    let mut h = DefaultHasher::new();
+    bytes.hash(&mut h);
+    h.finish()
+}
+
 villagesql::extension! {
     funcs: [
         // INT8RANGE (full surface) — VEF keys VDFs by (name, arg types), so each
@@ -340,6 +367,7 @@ villagesql::extension! {
             encode: encode_int4,
             decode: decode_int4,
             compare: int4_compare_ident,
+            hash: int4_hash,
         ),
         custom_type!(
             type_name: "DATERANGE",
@@ -348,6 +376,7 @@ villagesql::extension! {
             encode: encode_date,
             decode: decode_date,
             compare: date_compare_ident,
+            hash: date_hash,
         ),
         custom_type!(
             type_name: "DATETIMERANGE",
@@ -356,6 +385,7 @@ villagesql::extension! {
             encode: encode_datetime,
             decode: decode_datetime,
             compare: dt_compare_ident,
+            hash: dt_hash,
         ),
     ],
 }
