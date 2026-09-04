@@ -12,6 +12,12 @@ on:
         type: choice
         options: [patch, minor, major]
 
+      dry_run:
+        description: 'Skip version bump; use test version for artifact packaging'
+        required: false
+        type: boolean
+        default: false
+
 jobs:
   quality:
     name: Quality gates
@@ -60,8 +66,8 @@ jobs:
     needs: quality
     runs-on: ubuntu-latest
     outputs:
-      version: ${{ steps.bump.outputs.version }}
-      tag: ${{ steps.bump.outputs.tag }}
+      version: ${{ steps.bump.outputs.version || steps.test-version.outputs.version }}
+      tag: ${{ steps.bump.outputs.tag || '' }}
     steps:
       - name: Checkout sources
         uses: actions/checkout@v4
@@ -83,6 +89,7 @@ jobs:
 
       - name: Bump version
         id: bump
+        if: ${{ !inputs.dry_run }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -92,7 +99,15 @@ jobs:
           echo "version=$NEXT" >> "$GITHUB_OUTPUT"
           echo "tag=v$NEXT" >> "$GITHUB_OUTPUT"
 
+      - name: Set test version
+        id: test-version
+        if: ${{ inputs.dry_run }}
+        run: |
+          echo "version=0.0.0-test" >> "$GITHUB_OUTPUT"
+          echo "tag=" >> "$GITHUB_OUTPUT"
+
       - name: Push changes
+        if: ${{ !inputs.dry_run }}
         run: git push origin HEAD
 
   package:
