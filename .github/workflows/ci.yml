@@ -45,6 +45,3 @@ jobs:
 
       - name: Run tests
         run: cargo test --all-targets --all-features
-
-      - name: Run stable fuzz harness
-        run: cargo test --test fuzz_harness
