@@ -217,6 +217,9 @@ pub fn compare_bytes(a: &[u8], b: &[u8]) -> Ordering {
 }
 
 fn bytes_to_range(h: &Header, buf: &[u8]) -> Range {
+    if buf.len() < HEADER_LEN {
+        return Range::empty();
+    }
     let bytes = (buf.len() - HEADER_LEN) / 2;
     let mut r = Range::empty();
     r.empty = h.empty;
