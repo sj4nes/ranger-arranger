@@ -6,20 +6,20 @@ on:
   workflow_dispatch:
     inputs:
       bump:
-        description: 'Version bump level'
+        description: "Version bump level"
         required: true
-        default: 'patch'
+        default: "patch"
         type: choice
         options: [patch, minor, major]
 
       dry_run:
-        description: 'Skip version bump; use test version for artifact packaging'
+        description: "Skip version bump; use test version for artifact packaging"
         required: false
         type: boolean
         default: false
 
       skip_quality:
-        description: 'Skip quality gates; run only packaging steps'
+        description: "Skip quality gates; run only packaging steps"
         required: false
         type: boolean
         default: false
@@ -64,10 +64,6 @@ jobs:
 
       - name: Run tests
         run: cargo test --all-targets --all-features
-
-      - name: Run stable fuzz harness
-        run: cargo test --test fuzz_harness
-
   release:
     name: Bump version and tag
     if: ${{ !inputs.skip_quality || inputs.dry_run }}
