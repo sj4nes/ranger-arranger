@@ -18,9 +18,16 @@ on:
         type: boolean
         default: false
 
+      skip_quality:
+        description: 'Skip quality gates; run only packaging steps'
+        required: false
+        type: boolean
+        default: false
+
 jobs:
   quality:
     name: Quality gates
+    if: ${{ !inputs.skip_quality }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout sources
@@ -63,6 +70,7 @@ jobs:
 
   release:
     name: Bump version and tag
+    if: ${{ !inputs.skip_quality || inputs.dry_run }}
     needs: quality
     runs-on: ubuntu-latest
     outputs:
