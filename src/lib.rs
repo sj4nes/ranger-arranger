@@ -6,6 +6,7 @@
 pub mod engine;
 pub mod func;
 pub mod fuzz_api;
+pub mod multirange_types;
 pub mod subtype;
 
 // Bring the custom_type! encode/decode/compare fns into scope as bare idents.
@@ -19,7 +20,9 @@ use villagesql::{InValue, Type, VdfReturn, custom, custom_type, func};
 // ---- impl shims: the macro expects free fns; they delegate to the typed modules ----
 use engine::overlaps;
 use func::construct::{empty_for, make_for};
-use func::extract::{lower_for, lower_inc_for, upper_for, upper_inc_for};
+use func::extract::{
+    lower_for, lower_inc_for, multirange_lower, multirange_make, upper_for, upper_inc_for,
+};
 use func::predicates::{pred_binary, pred_flag};
 use func::setops::{difference_for, intersect_for, length_for, merge_for, union_for};
 
@@ -488,6 +491,60 @@ fn dt_hash(bytes: &[u8]) -> u64 {
     h.finish()
 }
 
+// ── multirange impl shims ──
+
+fn int8mr_make_impl(a: &[InValue]) -> VdfReturn {
+    if let Some(ret) = guard_null(a) {
+        return ret;
+    }
+    multirange_make(multirange_types::int8mr_encode, "INT8MULTIRANGE")(a)
+}
+fn int8mr_lower_impl(a: &[InValue]) -> VdfReturn {
+    if let Some(ret) = guard_null(a) {
+        return ret;
+    }
+    multirange_lower(multirange_types::int8mr_decode, "INT8MULTIRANGE")(a)
+}
+
+fn int4mr_make_impl(a: &[InValue]) -> VdfReturn {
+    if let Some(ret) = guard_null(a) {
+        return ret;
+    }
+    multirange_make(multirange_types::int4mr_encode, "INT4MULTIRANGE")(a)
+}
+fn int4mr_lower_impl(a: &[InValue]) -> VdfReturn {
+    if let Some(ret) = guard_null(a) {
+        return ret;
+    }
+    multirange_lower(multirange_types::int4mr_decode, "INT4MULTIRANGE")(a)
+}
+
+fn datemr_make_impl(a: &[InValue]) -> VdfReturn {
+    if let Some(ret) = guard_null(a) {
+        return ret;
+    }
+    multirange_make(multirange_types::datemr_encode, "DATEMULTIRANGE")(a)
+}
+fn datemr_lower_impl(a: &[InValue]) -> VdfReturn {
+    if let Some(ret) = guard_null(a) {
+        return ret;
+    }
+    multirange_lower(multirange_types::datemr_decode, "DATEMULTIRANGE")(a)
+}
+
+fn dtmr_make_impl(a: &[InValue]) -> VdfReturn {
+    if let Some(ret) = guard_null(a) {
+        return ret;
+    }
+    multirange_make(multirange_types::dtmr_encode, "DATETIMEMULTIRANGE")(a)
+}
+fn dtmr_lower_impl(a: &[InValue]) -> VdfReturn {
+    if let Some(ret) = guard_null(a) {
+        return ret;
+    }
+    multirange_lower(multirange_types::dtmr_decode, "DATETIMEMULTIRANGE")(a)
+}
+
 villagesql::extension! {
     funcs: [
         // INT8RANGE (full surface) — VEF keys VDFs by (name, arg types), so each
@@ -563,6 +620,14 @@ villagesql::extension! {
         func!(dt_union_impl, "DATETIMERANGE_UNION", [custom!("DATETIMERANGE"), custom!("DATETIMERANGE")] -> custom!("DATETIMERANGE"), buffer_size: 0, deterministic: true),
         func!(dt_difference_impl, "DATETIMERANGE_DIFFERENCE", [custom!("DATETIMERANGE"), custom!("DATETIMERANGE")] -> Type::String, buffer_size: 0, deterministic: true),
         func!(dt_length_impl, "DATETIMERANGE_LENGTH", [custom!("DATETIMERANGE")] -> Type::Int, buffer_size: 0, deterministic: true),
+        func!(int8mr_make_impl, "INT8MULTIRANGE_MAKE", [Type::String] -> custom!("INT8MULTIRANGE"), buffer_size: 0, deterministic: true),
+        func!(int8mr_lower_impl, "INT8MULTIRANGE_LOWER", [custom!("INT8MULTIRANGE")] -> Type::String, buffer_size: 0, deterministic: true),
+        func!(int4mr_make_impl, "INT4MULTIRANGE_MAKE", [Type::String] -> custom!("INT4MULTIRANGE"), buffer_size: 0, deterministic: true),
+        func!(int4mr_lower_impl, "INT4MULTIRANGE_LOWER", [custom!("INT4MULTIRANGE")] -> Type::String, buffer_size: 0, deterministic: true),
+        func!(datemr_make_impl, "DATEMULTIRANGE_MAKE", [Type::String] -> custom!("DATEMULTIRANGE"), buffer_size: 0, deterministic: true),
+        func!(datemr_lower_impl, "DATEMULTIRANGE_LOWER", [custom!("DATEMULTIRANGE")] -> Type::String, buffer_size: 0, deterministic: true),
+        func!(dtmr_make_impl, "DATETIMEMULTIRANGE_MAKE", [Type::String] -> custom!("DATETIMEMULTIRANGE"), buffer_size: 0, deterministic: true),
+        func!(dtmr_lower_impl, "DATETIMEMULTIRANGE_LOWER", [custom!("DATETIMEMULTIRANGE")] -> Type::String, buffer_size: 0, deterministic: true),
     ],
     types: [
         custom_type!(
@@ -601,6 +666,10 @@ villagesql::extension! {
             compare: dt_compare_ident,
             hash: dt_hash,
         ),
+        multirange_types::int8mr(),
+        multirange_types::int4mr(),
+        multirange_types::datemr(),
+        multirange_types::dtmr(),
     ],
 }
 

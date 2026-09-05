@@ -12,18 +12,19 @@ use vsql_ranger_arranger::engine::{
     Range, adjacent, canonicalize, contains_point, contains_range, difference, intersect, merge,
     overlaps,
 };
+use vsql_ranger_arranger::multirange_types::{
+    datemr_decode, datemr_encode, dtmr_decode, dtmr_encode, int4mr_decode, int4mr_encode,
+    int8mr_decode, int8mr_encode,
+};
 
 const BOUND: i64 = 100;
 
-/// The funcs always feed CANONICAL `[)` ranges to the engine (encode canonicalizes).
-/// Mirror that: canonicalize each generated range through a discrete subtype before
-/// exercising the algebra. This keeps the engine's precondition honest while the
-/// set-based reference stays the ground truth.
+// ---- Range strategies and reference model (unchanged) ----
+
 fn canon(r: &Range) -> Range {
     canonicalize::<vsql_ranger_arranger::subtype::int8::Int8Ops>(r)
 }
 fn arb_finite() -> impl Strategy<Value = Range> {
-    // Finite discrete range with endpoints inside [-BOUND, BOUND], lower <= upper.
     (
         -BOUND..=BOUND,
         -BOUND..=BOUND,
@@ -47,9 +48,7 @@ fn arb_finite() -> impl Strategy<Value = Range> {
             })
         })
 }
-
 fn arb_any() -> impl Strategy<Value = Range> {
-    // Any range: finite (above) or empty or infinity-flagged.
     prop_oneof![
         arb_finite(),
         Just(Range::empty()),
@@ -64,9 +63,6 @@ fn arb_any() -> impl Strategy<Value = Range> {
     ]
 }
 
-// ---- Independent reference model (set-based, brute force) ----
-
-/// Expand a FINITE range to the set of contained integer ordinals (discrete `[)` model).
 fn to_set(r: &Range) -> BTreeSet<i64> {
     assert!(!r.lower_inf && !r.upper_inf, "to_set needs finite range");
     if r.empty {
@@ -91,7 +87,6 @@ fn to_set(r: &Range) -> BTreeSet<i64> {
     s
 }
 
-/// Canonicalize a set back to a discrete `[)` Range.
 fn set_to_range(s: &BTreeSet<i64>) -> Range {
     if s.is_empty() {
         return Range::empty();
@@ -105,11 +100,10 @@ fn set_to_range(s: &BTreeSet<i64>) -> Range {
         lower_inc: true,
         upper_inc: false,
         lower: min as i128,
-        upper: (max as i128) + 1, // exclusive upper in `[)`
+        upper: (max as i128) + 1,
     }
 }
 
-// Independent ordinal-based reference for contains/overlaps (works on infinite ranges).
 fn ref_max(r: &Range) -> Option<i128> {
     if r.empty || r.upper_inf {
         None
@@ -142,13 +136,48 @@ fn ref_overlaps(a: &Range, b: &Range) -> bool {
     }
     let before = |x: &Range, y: &Range| match (ref_max(x), ref_min(y)) {
         (Some(mx), Some(mn)) => mx < mn,
-        _ => false, // an infinite bound means never strictly before
+        _ => false,
     };
     !before(a, b) && !before(b, a)
 }
 
+// ---- Multirange strategies ----
+
+fn arb_range_literal() -> impl Strategy<Value = String> {
+    (
+        -BOUND..=BOUND,
+        -BOUND..=BOUND,
+        prop::bool::ANY,
+        prop::bool::ANY,
+    )
+        .prop_filter_map("ordered", |(l, u, li, ui)| {
+            let (lower, upper, lower_inc, upper_inc) = if l <= u {
+                (l, u, li, ui)
+            } else {
+                (u, l, ui, li)
+            };
+            let lb = if lower_inc { '[' } else { '(' };
+            let rb = if upper_inc { ']' } else { ')' };
+            Some(format!("{lb}{lower},{upper}{rb}"))
+        })
+}
+
+fn arb_multirange_literal() -> impl Strategy<Value = String> {
+    (
+        0usize..=8,
+        prop::collection::vec(arb_range_literal(), 0..=8),
+    )
+        .prop_map(|(_, components)| {
+            if components.is_empty() {
+                return "empty".to_string();
+            }
+            format!("{{{}}}", components.join(","))
+        })
+}
+
+// ---- Range proptests (unchanged) ----
+
 proptest! {
-    // Differential: intersect == set intersection.
     #[test]
     fn prop_intersect_matches_set(r1 in arb_finite(), r2 in arb_finite()) {
         let (a, b) = (canon(&r1), canon(&r2));
@@ -157,7 +186,6 @@ proptest! {
         prop_assert_eq!(got, expected);
     }
 
-    // Differential: merge == set union (for the bounded, always-contiguous-enclosing case).
     #[test]
     fn prop_merge_matches_set(r1 in arb_finite(), r2 in arb_finite()) {
         let (a, b) = (canon(&r1), canon(&r2));
@@ -166,16 +194,11 @@ proptest! {
         prop_assert_eq!(got, expected);
     }
 
-    // Differential: difference == set difference, as 0/1/2 pieces.
     #[test]
     fn prop_difference_matches_set(r1 in arb_finite(), r2 in arb_finite()) {
         let (a, b) = (canon(&r1), canon(&r2));
         let got = difference(&a, &b);
-        let expected_set: BTreeSet<i64> = to_set(&a)
-            .difference(&to_set(&b))
-            .cloned()
-            .collect();
-        // Recompose expected pieces by splitting the difference set on gaps.
+        let expected_set: BTreeSet<i64> = to_set(&a).difference(&to_set(&b)).cloned().collect();
         let expected_pieces = set_to_pieces(&expected_set);
         prop_assert_eq!(got.len(), expected_pieces.len(), "piece count mismatch");
         for (g, e) in got.iter().zip(expected_pieces.iter()) {
@@ -183,7 +206,6 @@ proptest! {
         }
     }
 
-    // Differential (ordinal): contains_point agrees with independent reference.
     #[test]
     fn prop_contains_matches_ref(r in arb_any(), p in -BOUND..=BOUND) {
         let r = canon(&r);
@@ -191,21 +213,16 @@ proptest! {
         prop_assert_eq!(engine, ref_contains(&r, p as i128));
     }
 
-    // Differential (ordinal): overlaps agrees with independent reference.
     #[test]
     fn prop_overlaps_matches_ref(a in arb_any(), b in arb_any()) {
         let (a, b) = (canon(&a), canon(&b));
         prop_assert_eq!(overlaps(&a, &b), ref_overlaps(&a, &b));
     }
 
-    // Differential (ordinal): adjacent agrees with independent reference.
     #[test]
     fn prop_adjacent_matches_ref(a in arb_any(), b in arb_any()) {
         let (a, b) = (canon(&a), canon(&b));
         let engine = adjacent(&a, &b);
-        // reference (canonical `[)` bounds: lower inclusive, upper exclusive):
-        // adjacent iff disjoint, non-empty, and the exclusive upper of one equals
-        // the inclusive lower of the other (no gap, no overlap).
         let refv = !a.empty
             && !b.empty
             && !ref_overlaps(&a, &b)
@@ -214,7 +231,6 @@ proptest! {
         prop_assert_eq!(engine, refv);
     }
 
-    // contains_range: a contains b iff every element of b's set is in a's set.
     #[test]
     fn prop_contains_range_matches_set(a in arb_finite(), b in arb_finite()) {
         let (a, b) = (canon(&a), canon(&b));
@@ -223,8 +239,6 @@ proptest! {
         prop_assert_eq!(engine, refv);
     }
 
-    // Canonical-form invariant: intersect/merge/difference never produce empty-implied
-    // finite ranges with lower > upper.
     #[test]
     fn prop_finite_ranges_well_formed(r1 in arb_finite(), r2 in arb_finite()) {
         let (a, b) = (canon(&r1), canon(&r2));
@@ -253,7 +267,7 @@ fn set_to_pieces(s: &BTreeSet<i64>) -> Vec<Range> {
                 pieces.push(piece(lo, p));
                 cur_lo = Some(x);
             }
-            (Some(_), None) => { /* unreachable: prev always Some after first */ }
+            (Some(_), None) => { /* unreachable */ }
         }
         prev = Some(x);
     }
@@ -272,5 +286,79 @@ fn piece(lo: i64, hi: i64) -> Range {
         upper_inc: false,
         lower: lo as i128,
         upper: (hi as i128) + 1,
+    }
+}
+
+// ---- Multirange proptests ----
+
+proptest! {
+    /// INT8MULTIRANGE encode->decode round-trip is stable.
+    #[test]
+    fn prop_int8mr_roundtrip(lit in arb_multirange_literal()) {
+        let encoded = match int8mr_encode(&lit) {
+            Ok(b) => b,
+            Err(_) => { prop_assume!(false, "invalid multirange literal"); unreachable!(); }
+        };
+        let decoded = int8mr_decode(&encoded).expect("decode of our own encode must succeed");
+        let reencoded = int8mr_encode(&decoded).expect("re-encode of decode must succeed");
+        prop_assert_eq!(encoded, reencoded, "INT8MULTIRANGE round-trip not stable");
+    }
+
+    /// INT4MULTIRANGE encode->decode round-trip is stable.
+    #[test]
+    fn prop_int4mr_roundtrip(lit in arb_multirange_literal()) {
+        let encoded = match int4mr_encode(&lit) {
+            Ok(b) => b,
+            Err(_) => { prop_assume!(false, "invalid multirange literal"); unreachable!(); }
+        };
+        let decoded = int4mr_decode(&encoded).expect("decode of our own encode must succeed");
+        let reencoded = int4mr_encode(&decoded).expect("re-encode of decode must succeed");
+        prop_assert_eq!(encoded, reencoded, "INT4MULTIRANGE round-trip not stable");
+    }
+
+
+}
+
+// ---- Date/Datetime multirange round-trips (type-appropriate literals) ----
+
+#[test]
+fn prop_datemr_roundtrip_valid_dates() {
+    let cases = vec![
+        "{}",
+        "empty",
+        "{[2020-01-01,2020-06-01)}",
+        "{[2020-01-01,2020-06-01),[2020-07-01,2020-12-31)}",
+    ];
+    for lit in cases {
+        if let Ok(encoded) = datemr_encode(lit) {
+            let decoded = datemr_decode(&encoded).expect("decode of our own encode must succeed");
+            let reencoded = datemr_encode(&decoded).expect("re-encode of decode must succeed");
+            assert_eq!(
+                encoded, reencoded,
+                "DATEMULTIRANGE round-trip failed for: {}",
+                lit
+            );
+        }
+    }
+}
+
+#[test]
+fn prop_dtmr_roundtrip_valid_datetimes() {
+    let cases = vec![
+        "{}",
+        "empty",
+        "{[2020-01-01 00:00:00,2020-06-01 00:00:00)}",
+        "{[2020-01-01 00:00:00,2020-06-01 00:00:00),[2020-07-01 00:00:00,2020-12-31 00:00:00)}",
+    ];
+    for lit in cases {
+        if let Ok(encoded) = dtmr_encode(lit) {
+            let decoded = dtmr_decode(&encoded).expect("decode of our own encode must succeed");
+            let reencoded = dtmr_encode(&decoded).expect("re-encode of decode must succeed");
+            assert_eq!(
+                encoded, reencoded,
+                "DATETIMEMULTIRANGE round-trip failed for: {}",
+                lit
+            );
+        }
     }
 }

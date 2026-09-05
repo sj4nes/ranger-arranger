@@ -6,6 +6,10 @@
 
 use vsql_ranger_arranger::engine::Range;
 use vsql_ranger_arranger::fuzz_api::{fuzz_algebra, fuzz_bytes, parse_range};
+use vsql_ranger_arranger::multirange_types::{
+    datemr_decode, datemr_encode, dtmr_decode, dtmr_encode, int4mr_decode, int4mr_encode,
+    int8mr_decode, int8mr_encode,
+};
 
 // Small deterministic LCG (xorshift64*) so the run is reproducible and needs no deps.
 struct Rng(u64);
@@ -156,4 +160,94 @@ fn clamp(mut r: Range) -> Range {
     r.lower_inc = true;
     r.upper_inc = false;
     r
+}
+
+// ---- Multirange fuzz round-trips ----
+
+#[test]
+fn fuzz_multirange_bytes_random_and_edge_cases() {
+    let mut rng = Rng(0x1234_5678_9ABC_DEF2);
+
+    for len in [0usize, 1, 5, 17, 26, 37, 64, 128] {
+        for _ in 0..500 {
+            let data = rng.bytes(len);
+            let _ = int8mr_encode_from_bytes(&data);
+            let _ = int4mr_encode_from_bytes(&data);
+            let _ = datemr_encode_from_bytes(&data);
+            let _ = dtmr_encode_from_bytes(&data);
+        }
+    }
+
+    for lit in [
+        "empty",
+        "{}",
+        "{[1,5)}",
+        "{[1,5),[10,15)}",
+        "{[1,5),[10,15),[20,25)}",
+        "{[1,5),(5,10)}",
+        "{[1,5),[3,7)}",
+    ] {
+        for &(enc, dec) in &[
+            (
+                int8mr_encode as fn(&str) -> Result<Vec<u8>, String>,
+                int8mr_decode as fn(&[u8]) -> Result<String, String>,
+            ),
+            (int4mr_encode, int4mr_decode),
+            (datemr_encode, datemr_decode),
+            (dtmr_encode, dtmr_decode),
+        ] {
+            if let Ok(stored) = enc(lit) {
+                let _ = dec(&stored);
+                let _ = enc(&dec(&stored).unwrap_or_default());
+            }
+        }
+    }
+}
+
+fn int8mr_encode_from_bytes(data: &[u8]) -> Result<Vec<u8>, String> {
+    int8mr_encode(&bytes_to_range_literal(data, "int8"))
+}
+fn int4mr_encode_from_bytes(data: &[u8]) -> Result<Vec<u8>, String> {
+    int4mr_encode(&bytes_to_range_literal(data, "int4"))
+}
+fn datemr_encode_from_bytes(data: &[u8]) -> Result<Vec<u8>, String> {
+    datemr_encode(&bytes_to_range_literal(data, "date"))
+}
+fn dtmr_encode_from_bytes(data: &[u8]) -> Result<Vec<u8>, String> {
+    dtmr_encode(&bytes_to_range_literal(data, "datetime"))
+}
+
+fn bytes_to_range_literal(data: &[u8], kind: &str) -> String {
+    if data.is_empty() {
+        return "empty".to_string();
+    }
+    match kind {
+        "int8" | "int4" => {
+            let lo = (data[0] as i64).min(100);
+            let hi = (data.get(1).copied().unwrap_or(0) as i64).min(100);
+            let li = data.get(2).copied().unwrap_or(0) % 2 == 0;
+            let ui = data.get(3).copied().unwrap_or(0) % 2 == 0;
+            let lb = if li { '[' } else { '(' };
+            let rb = if ui { ']' } else { ')' };
+            format!("{lb}{lo},{hi}{rb}")
+        }
+        "date" => {
+            let y = 2026;
+            let m = ((data.first().copied().unwrap_or(1) as i64) % 12) + 1;
+            let d = ((data.get(1).copied().unwrap_or(1) as i64) % 28) + 1;
+            format!("[{y:04}-{m:02}-{d:02},{y:04}-{m:02}-{d:02}]")
+        }
+        "datetime" => {
+            let y = 2026;
+            let m = ((data.first().copied().unwrap_or(1) as i64) % 12) + 1;
+            let d = ((data.get(1).copied().unwrap_or(1) as i64) % 28) + 1;
+            let h = (data.get(2).copied().unwrap_or(0) as i64) % 24;
+            let mi = (data.get(3).copied().unwrap_or(0) as i64) % 60;
+            let s = (data.get(4).copied().unwrap_or(0) as i64) % 60;
+            format!(
+                "[{y:04}-{m:02}-{d:02} {h:02}:{mi:02}:{s:02},{y:04}-{m:02}-{d:02} {h:02}:{mi:02}:{s:02}]"
+            )
+        }
+        _ => "empty".to_string(),
+    }
 }
