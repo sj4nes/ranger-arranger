@@ -222,7 +222,7 @@ Fuzzing found and fixed 6 real bugs before release: empty-header form mismatch, 
 
 ## Honesty boundary
 
-This extension does NOT provide trigger-based exclusion constraints, and it does NOT enforce concurrent-write integrity. `RANGE_ASSERT_AVAILABLE` availability windows are deferred. The full list of guarantees and where they stop is in `docs/epic6-integrity-honesty.md`; the indexing work-around for fast overlap queries is in `docs/epic5-indexing-cookbook.md`.
+This extension does NOT provide trigger-based exclusion constraints, and it does NOT enforce concurrent-write integrity. `RANGE_ASSERT_AVAILABLE` availability windows are deferred. The full list of guarantees and where they stop is in `docs/integrity-honesty.md`; the indexing work-around for fast overlap queries is in `docs/ndexing-cookbook.md`.
 
 ## Working with custom types
 
