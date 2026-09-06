@@ -12,3 +12,6 @@ vendor/*/target/
 # Skill tracking scratchpads (never ship)
 .claude/
 planning
+
+# Evaluation-only vendor checkout; do not ship
+vendor/villagesql-skills/
