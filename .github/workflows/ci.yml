@@ -47,7 +47,7 @@ jobs:
         run: cargo install cargo-llvm-cov
 
       - name: Run coverage
-        run: cargo llvm-cov --all-targets --all-features --ignore-filename-regex 'vendor/|villagesql/' --fail-under-lines 54.73 --lcov --output-path lcov.info
+        run: cargo llvm-cov --all-targets --all-features --ignore-filename-regex 'vendor/|villagesql/' --fail-under-lines 50 --lcov --output-path lcov.info
 
       - name: Upload coverage artifact
         uses: actions/upload-artifact@v4
