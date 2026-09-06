@@ -3,10 +3,13 @@
 // string of pieces (FR-8.4: never a single lossy range).
 use crate::engine::canonical::{range_to_bytes, to_range};
 use crate::engine::{RangeSubtypeOps, difference, intersect, length, merge, overlaps};
+use crate::multirange_types;
 use crate::subtype;
 use villagesql::{InValue, VdfReturn};
 
 type BinaryRangeOp = fn(&crate::engine::Range, &crate::engine::Range) -> crate::engine::Range;
+type MultirangePredOp = fn(&[u8], &[u8]) -> Result<bool, String>;
+type MultirangeSetOp = fn(&[u8], &[u8]) -> Result<Vec<u8>, String>;
 
 fn bin_op<T: RangeSubtypeOps>(
     args: &[InValue],
@@ -143,4 +146,121 @@ pub fn int8_difference(args: &[InValue]) -> VdfReturn {
 #[allow(dead_code)]
 pub fn int8_length(args: &[InValue]) -> VdfReturn {
     length_for::<subtype::int8::Int8Ops>()(args)
+}
+
+// ── multirange algebra VDFs ──
+//
+// These lift the single-range primitives over component lists.  Each returns
+// the canonical multirange buffer form (or a bool/INT for predicates).
+
+#[allow(dead_code)]
+pub fn int8mr_overlaps(args: &[InValue]) -> VdfReturn {
+    multirange_binary_pred(multirange_types::int8mr_overlaps)(args)
+}
+#[allow(dead_code)]
+pub fn int8mr_contains_range(args: &[InValue]) -> VdfReturn {
+    multirange_binary_pred(multirange_types::int8mr_contains_range)(args)
+}
+#[allow(dead_code)]
+pub fn int8mr_intersect(args: &[InValue]) -> VdfReturn {
+    multirange_binary_set(multirange_types::int8mr_intersect)(args)
+}
+#[allow(dead_code)]
+pub fn int8mr_merge(args: &[InValue]) -> VdfReturn {
+    multirange_binary_set(multirange_types::int8mr_merge)(args)
+}
+#[allow(dead_code)]
+pub fn int8mr_difference(args: &[InValue]) -> VdfReturn {
+    multirange_binary_set(multirange_types::int8mr_difference)(args)
+}
+
+#[allow(dead_code)]
+pub fn int4mr_overlaps(args: &[InValue]) -> VdfReturn {
+    multirange_binary_pred(multirange_types::int4mr_overlaps)(args)
+}
+#[allow(dead_code)]
+pub fn int4mr_contains_range(args: &[InValue]) -> VdfReturn {
+    multirange_binary_pred(multirange_types::int4mr_contains_range)(args)
+}
+#[allow(dead_code)]
+pub fn int4mr_intersect(args: &[InValue]) -> VdfReturn {
+    multirange_binary_set(multirange_types::int4mr_intersect)(args)
+}
+#[allow(dead_code)]
+pub fn int4mr_merge(args: &[InValue]) -> VdfReturn {
+    multirange_binary_set(multirange_types::int4mr_merge)(args)
+}
+#[allow(dead_code)]
+pub fn int4mr_difference(args: &[InValue]) -> VdfReturn {
+    multirange_binary_set(multirange_types::int4mr_difference)(args)
+}
+
+#[allow(dead_code)]
+pub fn datemr_overlaps(args: &[InValue]) -> VdfReturn {
+    multirange_binary_pred(multirange_types::datemr_overlaps)(args)
+}
+#[allow(dead_code)]
+pub fn datemr_contains_range(args: &[InValue]) -> VdfReturn {
+    multirange_binary_pred(multirange_types::datemr_contains_range)(args)
+}
+#[allow(dead_code)]
+pub fn datemr_intersect(args: &[InValue]) -> VdfReturn {
+    multirange_binary_set(multirange_types::datemr_intersect)(args)
+}
+#[allow(dead_code)]
+pub fn datemr_merge(args: &[InValue]) -> VdfReturn {
+    multirange_binary_set(multirange_types::datemr_merge)(args)
+}
+#[allow(dead_code)]
+pub fn datemr_difference(args: &[InValue]) -> VdfReturn {
+    multirange_binary_set(multirange_types::datemr_difference)(args)
+}
+
+#[allow(dead_code)]
+pub fn dtmr_overlaps(args: &[InValue]) -> VdfReturn {
+    multirange_binary_pred(multirange_types::dtmr_overlaps)(args)
+}
+#[allow(dead_code)]
+pub fn dtmr_contains_range(args: &[InValue]) -> VdfReturn {
+    multirange_binary_pred(multirange_types::dtmr_contains_range)(args)
+}
+#[allow(dead_code)]
+pub fn dtmr_intersect(args: &[InValue]) -> VdfReturn {
+    multirange_binary_set(multirange_types::dtmr_intersect)(args)
+}
+#[allow(dead_code)]
+pub fn dtmr_merge(args: &[InValue]) -> VdfReturn {
+    multirange_binary_set(multirange_types::dtmr_merge)(args)
+}
+#[allow(dead_code)]
+pub fn dtmr_difference(args: &[InValue]) -> VdfReturn {
+    multirange_binary_set(multirange_types::dtmr_difference)(args)
+}
+
+/// Bool predicate over two multirange custom values.
+fn multirange_binary_pred(op: MultirangePredOp) -> impl Fn(&[InValue]) -> VdfReturn {
+    move |args: &[InValue]| -> VdfReturn {
+        match (args.first(), args.get(1)) {
+            (Some(InValue::Custom(a)), Some(InValue::Custom(b))) => match op(a, b) {
+                Ok(b) => VdfReturn::int(if b { 1 } else { 0 }),
+                Err(e) => VdfReturn::error(e),
+            },
+            (Some(InValue::Null), _) | (_, Some(InValue::Null)) => VdfReturn::null(),
+            _ => VdfReturn::error("multirange predicate: expected (custom, custom)"),
+        }
+    }
+}
+
+/// Set-op over two multirange custom values; returns the result buffer.
+fn multirange_binary_set(op: MultirangeSetOp) -> impl Fn(&[InValue]) -> VdfReturn {
+    move |args: &[InValue]| -> VdfReturn {
+        match (args.first(), args.get(1)) {
+            (Some(InValue::Custom(a)), Some(InValue::Custom(b))) => match op(a, b) {
+                Ok(b) => VdfReturn::binary(b),
+                Err(e) => VdfReturn::error(e),
+            },
+            (Some(InValue::Null), _) | (_, Some(InValue::Null)) => VdfReturn::null(),
+            _ => VdfReturn::error("multirange set-op: expected (custom, custom)"),
+        }
+    }
 }

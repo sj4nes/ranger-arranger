@@ -11,3 +11,4 @@ vendor/*/target/
 
 # Skill tracking scratchpads (never ship)
 .claude/
+planning

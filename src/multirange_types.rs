@@ -29,6 +29,7 @@ use villagesql::{TypeWithFuncs, custom_type};
 use crate::engine::{
     Range, RangeSubtypeOps, canonical, compare::range_compare, flags::HEADER_LEN, persisted_length,
 };
+use crate::subtype;
 
 // ── constants ──
 
@@ -323,6 +324,299 @@ pub fn mr_hash(b: &[u8]) -> u64 {
     let mut h = DefaultHasher::new();
     b.hash(&mut h);
     h.finish()
+}
+
+// ── multirange algebra (lifted from single-range primitives) ──
+//
+// Each function decodes both operands, applies the lifted operation,
+// then re-encodes the result.  The result is always canonicalized
+// (merge adjacent/overlapping components, drop empties).
+
+fn mr_overlaps_inner<T: RangeSubtypeOps>(a_buf: &[u8], b_buf: &[u8]) -> Result<bool, String> {
+    let a_comps = mr_decode_to_vec::<T>(a_buf)?;
+    let b_comps = mr_decode_to_vec::<T>(b_buf)?;
+    for ra in &a_comps {
+        for rb in &b_comps {
+            if crate::engine::overlaps(ra, rb) {
+                return Ok(true);
+            }
+        }
+    }
+    Ok(false)
+}
+
+fn mr_contains_range_inner<T: RangeSubtypeOps>(a_buf: &[u8], b_buf: &[u8]) -> Result<bool, String> {
+    let a_comps = mr_decode_to_vec::<T>(a_buf)?;
+    let b_comps = mr_decode_to_vec::<T>(b_buf)?;
+    for rb in &b_comps {
+        let mut found = false;
+        for ra in &a_comps {
+            if crate::engine::contains_range(ra, rb) {
+                found = true;
+                break;
+            }
+        }
+        if !found {
+            return Ok(false);
+        }
+    }
+    Ok(true)
+}
+
+fn mr_intersect_inner<T: RangeSubtypeOps>(a_buf: &[u8], b_buf: &[u8]) -> Result<Vec<u8>, String> {
+    let a_comps = mr_decode_to_vec::<T>(a_buf)?;
+    let b_comps = mr_decode_to_vec::<T>(b_buf)?;
+    let mut result = Vec::new();
+    for ra in &a_comps {
+        for rb in &b_comps {
+            if crate::engine::overlaps(ra, rb) {
+                result.push(crate::engine::intersect(ra, rb));
+            }
+        }
+    }
+    let normalized = normalize_components::<T>(result)?;
+    mr_encode_components::<T>(&normalized)
+}
+
+fn mr_merge_inner<T: RangeSubtypeOps>(a_buf: &[u8], b_buf: &[u8]) -> Result<Vec<u8>, String> {
+    let a_comps = mr_decode_to_vec::<T>(a_buf)?;
+    let b_comps = mr_decode_to_vec::<T>(b_buf)?;
+    let mut combined = a_comps;
+    combined.extend(b_comps);
+    let normalized = normalize_components::<T>(combined)?;
+    mr_encode_components::<T>(&normalized)
+}
+
+fn mr_difference_inner<T: RangeSubtypeOps>(a_buf: &[u8], b_buf: &[u8]) -> Result<Vec<u8>, String> {
+    let a_comps = mr_decode_to_vec::<T>(a_buf)?;
+    let b_comps = mr_decode_to_vec::<T>(b_buf)?;
+    let mut result = Vec::new();
+    for ra in &a_comps {
+        let mut remaining = vec![*ra];
+        for rb in &b_comps {
+            let mut next = Vec::new();
+            for piece in remaining {
+                next.extend(crate::engine::difference(&piece, rb));
+            }
+            remaining = next;
+        }
+        result.extend(remaining);
+    }
+    let normalized = normalize_components::<T>(result)?;
+    mr_encode_components::<T>(&normalized)
+}
+
+pub fn mr_decode_to_vec<T: RangeSubtypeOps>(
+    buf: &[u8],
+) -> Result<Vec<crate::engine::Range>, String> {
+    let plen = COUNT_BYTES + MAX_COMPONENTS * persisted_length(T::ENDPOINT_BYTES);
+    if buf.len() != plen {
+        return Err(format!(
+            "{}: corrupt stored length {} (expected {})",
+            T::TYPE_NAME,
+            buf.len(),
+            plen
+        ));
+    }
+    let count = ((buf[0] as usize) << 8) | (buf[1] as usize);
+    if count > MAX_COMPONENTS {
+        return Err(format!(
+            "{}: component count {} exceeds maximum {}",
+            T::TYPE_NAME,
+            count,
+            MAX_COMPONENTS
+        ));
+    }
+    let cb = persisted_length(T::ENDPOINT_BYTES);
+    let mut out = Vec::with_capacity(count);
+    for i in 0..count {
+        let off = COUNT_BYTES + i * cb;
+        let r = canonical::to_range::<T>(&buf[off..off + cb])?;
+        out.push(r);
+    }
+    Ok(out)
+}
+
+pub fn int8mr_decode_to_vec(buf: &[u8]) -> Result<Vec<crate::engine::Range>, String> {
+    mr_decode_to_vec::<subtype::int8::Int8Ops>(buf)
+}
+pub fn int4mr_decode_to_vec(buf: &[u8]) -> Result<Vec<crate::engine::Range>, String> {
+    mr_decode_to_vec::<subtype::int4::Int4Ops>(buf)
+}
+pub fn datemr_decode_to_vec(buf: &[u8]) -> Result<Vec<crate::engine::Range>, String> {
+    mr_decode_to_vec::<subtype::date::DateOps>(buf)
+}
+pub fn dtmr_decode_to_vec(buf: &[u8]) -> Result<Vec<crate::engine::Range>, String> {
+    mr_decode_to_vec::<subtype::datetime::DateTimeOps>(buf)
+}
+
+pub fn mr_encode_components<T: RangeSubtypeOps>(components: &[Range]) -> Result<Vec<u8>, String> {
+    if components.len() > MAX_COMPONENTS {
+        return Err(format!(
+            "multirange: {} components exceeds maximum of {}",
+            components.len(),
+            MAX_COMPONENTS
+        ));
+    }
+    let plen = COUNT_BYTES + MAX_COMPONENTS * persisted_length(T::ENDPOINT_BYTES);
+    let mut buf = vec![0u8; plen];
+    let count = components.len() as u16;
+    buf[0] = (count >> 8) as u8;
+    buf[1] = count as u8;
+    let cb = persisted_length(T::ENDPOINT_BYTES);
+    for (i, r) in components.iter().enumerate() {
+        let comp_bytes = range_to_bytes_canonical::<T>(r);
+        let off = COUNT_BYTES + i * cb;
+        buf[off..off + cb].copy_from_slice(&comp_bytes);
+    }
+    Ok(buf)
+}
+
+fn range_to_bytes_canonical<T: RangeSubtypeOps>(r: &Range) -> Vec<u8> {
+    let c = crate::engine::canonicalize::<T>(r);
+    canonical::range_to_bytes::<T>(&c)
+}
+
+// ── type registrations ──
+
+// ── public algebra wrappers ──
+
+pub fn int8mr_overlaps(a: &[u8], b: &[u8]) -> Result<bool, String> {
+    mr_overlaps_inner::<subtype::int8::Int8Ops>(a, b)
+}
+pub fn int8mr_contains_range(a: &[u8], b: &[u8]) -> Result<bool, String> {
+    mr_contains_range_inner::<subtype::int8::Int8Ops>(a, b)
+}
+pub fn int8mr_intersect(a: &[u8], b: &[u8]) -> Result<Vec<u8>, String> {
+    mr_intersect_inner::<subtype::int8::Int8Ops>(a, b)
+}
+pub fn int8mr_merge(a: &[u8], b: &[u8]) -> Result<Vec<u8>, String> {
+    mr_merge_inner::<subtype::int8::Int8Ops>(a, b)
+}
+pub fn int8mr_difference(a: &[u8], b: &[u8]) -> Result<Vec<u8>, String> {
+    mr_difference_inner::<subtype::int8::Int8Ops>(a, b)
+}
+
+pub fn int4mr_overlaps(a: &[u8], b: &[u8]) -> Result<bool, String> {
+    mr_overlaps_inner::<subtype::int4::Int4Ops>(a, b)
+}
+pub fn int4mr_contains_range(a: &[u8], b: &[u8]) -> Result<bool, String> {
+    mr_contains_range_inner::<subtype::int4::Int4Ops>(a, b)
+}
+pub fn int4mr_intersect(a: &[u8], b: &[u8]) -> Result<Vec<u8>, String> {
+    mr_intersect_inner::<subtype::int4::Int4Ops>(a, b)
+}
+pub fn int4mr_merge(a: &[u8], b: &[u8]) -> Result<Vec<u8>, String> {
+    mr_merge_inner::<subtype::int4::Int4Ops>(a, b)
+}
+pub fn int4mr_difference(a: &[u8], b: &[u8]) -> Result<Vec<u8>, String> {
+    mr_difference_inner::<subtype::int4::Int4Ops>(a, b)
+}
+
+pub fn datemr_overlaps(a: &[u8], b: &[u8]) -> Result<bool, String> {
+    mr_overlaps_inner::<subtype::date::DateOps>(a, b)
+}
+pub fn datemr_contains_range(a: &[u8], b: &[u8]) -> Result<bool, String> {
+    mr_contains_range_inner::<subtype::date::DateOps>(a, b)
+}
+pub fn datemr_intersect(a: &[u8], b: &[u8]) -> Result<Vec<u8>, String> {
+    mr_intersect_inner::<subtype::date::DateOps>(a, b)
+}
+pub fn datemr_merge(a: &[u8], b: &[u8]) -> Result<Vec<u8>, String> {
+    mr_merge_inner::<subtype::date::DateOps>(a, b)
+}
+pub fn datemr_difference(a: &[u8], b: &[u8]) -> Result<Vec<u8>, String> {
+    mr_difference_inner::<subtype::date::DateOps>(a, b)
+}
+
+pub fn dtmr_overlaps(a: &[u8], b: &[u8]) -> Result<bool, String> {
+    mr_overlaps_inner::<subtype::datetime::DateTimeOps>(a, b)
+}
+pub fn dtmr_contains_range(a: &[u8], b: &[u8]) -> Result<bool, String> {
+    mr_contains_range_inner::<subtype::datetime::DateTimeOps>(a, b)
+}
+pub fn dtmr_intersect(a: &[u8], b: &[u8]) -> Result<Vec<u8>, String> {
+    mr_intersect_inner::<subtype::datetime::DateTimeOps>(a, b)
+}
+pub fn dtmr_merge(a: &[u8], b: &[u8]) -> Result<Vec<u8>, String> {
+    mr_merge_inner::<subtype::datetime::DateTimeOps>(a, b)
+}
+pub fn dtmr_difference(a: &[u8], b: &[u8]) -> Result<Vec<u8>, String> {
+    mr_difference_inner::<subtype::datetime::DateTimeOps>(a, b)
+}
+
+// ── test helpers ──
+
+/// Decode a multirange literal through encode then decode, returning the live components.
+pub fn roundtrip_components<T: RangeSubtypeOps>(lit: &str) -> Result<Vec<Range>, String> {
+    let encoded = mr_encode_inner::<T>(lit)?;
+    mr_decode_to_vec::<T>(&encoded)
+}
+
+/// Lifted overlaps: true iff any component pair overlaps.
+pub fn lift_overlaps<T: RangeSubtypeOps>(a: &[Range], b: &[Range]) -> bool {
+    for ra in a {
+        for rb in b {
+            if crate::engine::overlaps(ra, rb) {
+                return true;
+            }
+        }
+    }
+    false
+}
+
+/// Lifted contains_range: true iff every component in `b` is contained by some component in `a`.
+pub fn lift_contains_range<T: RangeSubtypeOps>(a: &[Range], b: &[Range]) -> bool {
+    for rb in b {
+        let mut found = false;
+        for ra in a {
+            if crate::engine::contains_range(ra, rb) {
+                found = true;
+                break;
+            }
+        }
+        if !found {
+            return false;
+        }
+    }
+    true
+}
+
+/// Lifted intersect: intersect every component pair, then normalize.
+pub fn lift_intersect<T: RangeSubtypeOps>(a: &[Range], b: &[Range]) -> Vec<Range> {
+    let mut out = Vec::new();
+    for ra in a {
+        for rb in b {
+            if crate::engine::overlaps(ra, rb) {
+                out.push(crate::engine::intersect(ra, rb));
+            }
+        }
+    }
+    normalize_components::<T>(out).unwrap_or_default()
+}
+
+/// Lifted merge: normalize the union of both component lists.
+pub fn lift_merge<T: RangeSubtypeOps>(a: &[Range], b: &[Range]) -> Vec<Range> {
+    let mut combined = a.to_vec();
+    combined.extend(b);
+    normalize_components::<T>(combined).unwrap_or_default()
+}
+
+/// Lifted difference: subtract every component of `b` from each component of `a`, then normalize.
+pub fn lift_difference<T: RangeSubtypeOps>(a: &[Range], b: &[Range]) -> Vec<Range> {
+    let mut out = Vec::new();
+    for ra in a {
+        let mut remaining = vec![*ra];
+        for rb in b {
+            let mut next = Vec::new();
+            for piece in remaining {
+                next.extend(crate::engine::difference(&piece, rb));
+            }
+            remaining = next;
+        }
+        out.extend(remaining);
+    }
+    normalize_components::<T>(out).unwrap_or_default()
 }
 
 // ── type registrations ──

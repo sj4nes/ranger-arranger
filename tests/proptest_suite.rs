@@ -13,9 +13,15 @@ use vsql_ranger_arranger::engine::{
     overlaps,
 };
 use vsql_ranger_arranger::multirange_types::{
-    datemr_decode, datemr_encode, dtmr_decode, dtmr_encode, int4mr_decode, int4mr_encode,
-    int8mr_decode, int8mr_encode,
+    datemr_contains_range, datemr_decode, datemr_difference, datemr_encode, datemr_intersect,
+    datemr_merge, datemr_overlaps, dtmr_contains_range, dtmr_decode, dtmr_difference, dtmr_encode,
+    dtmr_intersect, dtmr_merge, dtmr_overlaps, int4mr_contains_range, int4mr_decode,
+    int4mr_difference, int4mr_encode, int4mr_intersect, int4mr_merge, int4mr_overlaps,
+    int8mr_contains_range, int8mr_decode, int8mr_difference, int8mr_encode, int8mr_intersect,
+    int8mr_merge, int8mr_overlaps, lift_contains_range, lift_difference, lift_intersect,
+    lift_merge, lift_overlaps, mr_decode_to_vec, roundtrip_components,
 };
+use vsql_ranger_arranger::subtype::{DateOps, DateTimeOps, Int4Ops, Int8Ops};
 
 const BOUND: i64 = 100;
 
@@ -360,5 +366,236 @@ fn prop_dtmr_roundtrip_valid_datetimes() {
                 lit
             );
         }
+    }
+}
+
+// ---- Multirange algebra proptests ----
+//
+// Oracle: lift the single-range engine over component lists.
+// We decode both operands to Vec<Range>, apply the lifted op in-Rust,
+// then compare against the VDF result (decode VDF output → re-encode).
+
+proptest! {
+    fn prop_int8mr_overlaps_matches_lifted(lit_a in arb_multirange_literal(), lit_b in arb_multirange_literal()) {
+        let a_comps = roundtrip_components::<Int8Ops>(&lit_a).expect("valid int8 multirange literal");
+        let b_comps = roundtrip_components::<Int8Ops>(&lit_b).expect("valid int8 multirange literal");
+        let expected = lift_overlaps::<Int8Ops>(&a_comps, &b_comps);
+        let enc_a = int8mr_encode(&lit_a).unwrap();
+        let enc_b = int8mr_encode(&lit_b).unwrap();
+        let got = int8mr_overlaps(&enc_a, &enc_b).unwrap();
+        prop_assert_eq!(got, expected);
+    }
+    fn prop_int8mr_contains_range_matches_lifted(lit_a in arb_multirange_literal(), lit_b in arb_multirange_literal()) {
+        let a_comps = roundtrip_components::<Int8Ops>(&lit_a).expect("valid int8 multirange literal");
+        let b_comps = roundtrip_components::<Int8Ops>(&lit_b).expect("valid int8 multirange literal");
+        let expected = lift_contains_range::<Int8Ops>(&a_comps, &b_comps);
+        let enc_a = int8mr_encode(&lit_a).unwrap();
+        let enc_b = int8mr_encode(&lit_b).unwrap();
+        let got = int8mr_contains_range(&enc_a, &enc_b).unwrap();
+        prop_assert_eq!(got, expected);
+    }
+    fn prop_int8mr_intersect_matches_lifted(lit_a in arb_multirange_literal(), lit_b in arb_multirange_literal()) {
+        let a_comps = roundtrip_components::<Int8Ops>(&lit_a).expect("valid int8 multirange literal");
+        let b_comps = roundtrip_components::<Int8Ops>(&lit_b).expect("valid int8 multirange literal");
+        let expected = lift_intersect::<Int8Ops>(&a_comps, &b_comps);
+        let enc_a = int8mr_encode(&lit_a).unwrap();
+        let enc_b = int8mr_encode(&lit_b).unwrap();
+        let got_buf = int8mr_intersect(&enc_a, &enc_b).unwrap();
+        let got_comps = mr_decode_to_vec::<Int8Ops>(&got_buf).unwrap();
+        prop_assert_eq!(got_comps, expected);
+    }
+    fn prop_int8mr_merge_matches_lifted(lit_a in arb_multirange_literal(), lit_b in arb_multirange_literal()) {
+        let a_comps = roundtrip_components::<Int8Ops>(&lit_a).expect("valid int8 multirange literal");
+        let b_comps = roundtrip_components::<Int8Ops>(&lit_b).expect("valid int8 multirange literal");
+        let expected = lift_merge::<Int8Ops>(&a_comps, &b_comps);
+        let enc_a = int8mr_encode(&lit_a).unwrap();
+        let enc_b = int8mr_encode(&lit_b).unwrap();
+        let got_buf = int8mr_merge(&enc_a, &enc_b).unwrap();
+        let got_comps = mr_decode_to_vec::<Int8Ops>(&got_buf).unwrap();
+        prop_assert_eq!(got_comps, expected);
+    }
+    fn prop_int8mr_difference_matches_lifted(lit_a in arb_multirange_literal(), lit_b in arb_multirange_literal()) {
+        let a_comps = roundtrip_components::<Int8Ops>(&lit_a).expect("valid int8 multirange literal");
+        let b_comps = roundtrip_components::<Int8Ops>(&lit_b).expect("valid int8 multirange literal");
+        let expected = lift_difference::<Int8Ops>(&a_comps, &b_comps);
+        let enc_a = int8mr_encode(&lit_a).unwrap();
+        let enc_b = int8mr_encode(&lit_b).unwrap();
+        let got_buf = int8mr_difference(&enc_a, &enc_b).unwrap();
+        let got_comps = mr_decode_to_vec::<Int8Ops>(&got_buf).unwrap();
+        prop_assert_eq!(got_comps, expected);
+    }
+    fn prop_int4mr_overlaps_matches_lifted(lit_a in arb_multirange_literal(), lit_b in arb_multirange_literal()) {
+        let a_comps = roundtrip_components::<Int4Ops>(&lit_a).expect("valid int4 multirange literal");
+        let b_comps = roundtrip_components::<Int4Ops>(&lit_b).expect("valid int4 multirange literal");
+        let expected = lift_overlaps::<Int4Ops>(&a_comps, &b_comps);
+        let enc_a = int4mr_encode(&lit_a).unwrap();
+        let enc_b = int4mr_encode(&lit_b).unwrap();
+        let got = int4mr_overlaps(&enc_a, &enc_b).unwrap();
+        prop_assert_eq!(got, expected);
+    }
+    fn prop_int4mr_contains_range_matches_lifted(lit_a in arb_multirange_literal(), lit_b in arb_multirange_literal()) {
+        let a_comps = roundtrip_components::<Int4Ops>(&lit_a).expect("valid int4 multirange literal");
+        let b_comps = roundtrip_components::<Int4Ops>(&lit_b).expect("valid int4 multirange literal");
+        let expected = lift_contains_range::<Int4Ops>(&a_comps, &b_comps);
+        let enc_a = int4mr_encode(&lit_a).unwrap();
+        let enc_b = int4mr_encode(&lit_b).unwrap();
+        let got = int4mr_contains_range(&enc_a, &enc_b).unwrap();
+        prop_assert_eq!(got, expected);
+    }
+    fn prop_int4mr_intersect_matches_lifted(lit_a in arb_multirange_literal(), lit_b in arb_multirange_literal()) {
+        let a_comps = roundtrip_components::<Int4Ops>(&lit_a).expect("valid int4 multirange literal");
+        let b_comps = roundtrip_components::<Int4Ops>(&lit_b).expect("valid int4 multirange literal");
+        let expected = lift_intersect::<Int4Ops>(&a_comps, &b_comps);
+        let enc_a = int4mr_encode(&lit_a).unwrap();
+        let enc_b = int4mr_encode(&lit_b).unwrap();
+        let got_buf = int4mr_intersect(&enc_a, &enc_b).unwrap();
+        let got_comps = mr_decode_to_vec::<Int4Ops>(&got_buf).unwrap();
+        prop_assert_eq!(got_comps, expected);
+    }
+    fn prop_int4mr_merge_matches_lifted(lit_a in arb_multirange_literal(), lit_b in arb_multirange_literal()) {
+        let a_comps = roundtrip_components::<Int4Ops>(&lit_a).expect("valid int4 multirange literal");
+        let b_comps = roundtrip_components::<Int4Ops>(&lit_b).expect("valid int4 multirange literal");
+        let expected = lift_merge::<Int4Ops>(&a_comps, &b_comps);
+        let enc_a = int4mr_encode(&lit_a).unwrap();
+        let enc_b = int4mr_encode(&lit_b).unwrap();
+        let got_buf = int4mr_merge(&enc_a, &enc_b).unwrap();
+        let got_comps = mr_decode_to_vec::<Int4Ops>(&got_buf).unwrap();
+        prop_assert_eq!(got_comps, expected);
+    }
+    fn prop_int4mr_difference_matches_lifted(lit_a in arb_multirange_literal(), lit_b in arb_multirange_literal()) {
+        let a_comps = roundtrip_components::<Int4Ops>(&lit_a).expect("valid int4 multirange literal");
+        let b_comps = roundtrip_components::<Int4Ops>(&lit_b).expect("valid int4 multirange literal");
+        let expected = lift_difference::<Int4Ops>(&a_comps, &b_comps);
+        let enc_a = int4mr_encode(&lit_a).unwrap();
+        let enc_b = int4mr_encode(&lit_b).unwrap();
+        let got_buf = int4mr_difference(&enc_a, &enc_b).unwrap();
+        let got_comps = mr_decode_to_vec::<Int4Ops>(&got_buf).unwrap();
+        prop_assert_eq!(got_comps, expected);
+    }
+}
+
+fn date_mr_cases() -> Vec<(&'static str, &'static str)> {
+    let lits = [
+        "{}",
+        "empty",
+        "{[2020-01-01,2020-06-01)}",
+        "{[2020-07-01,2020-12-31)}",
+        "{[2020-01-01,2020-06-01),[2020-07-01,2020-12-31)}",
+    ];
+    let mut out = Vec::new();
+    for a in &lits {
+        for b in &lits {
+            out.push((*a, *b));
+        }
+    }
+    out
+}
+
+fn dt_mr_cases() -> Vec<(&'static str, &'static str)> {
+    let lits = [
+        "{}",
+        "empty",
+        "{[2020-01-01 00:00:00,2020-06-01 00:00:00)}",
+        "{[2020-07-01 00:00:00,2020-12-31 00:00:00)}",
+        "{[2020-01-01 00:00:00,2020-06-01 00:00:00),[2020-07-01 00:00:00,2020-12-31 00:00:00)}",
+    ];
+    let mut out = Vec::new();
+    for a in &lits {
+        for b in &lits {
+            out.push((*a, *b));
+        }
+    }
+    out
+}
+
+#[test]
+fn prop_datemr_algebra_matches_lifted() {
+    for (lit_a, lit_b) in date_mr_cases() {
+        let a_comps = mr_decode_to_vec::<DateOps>(&datemr_encode(lit_a).unwrap()).unwrap();
+        let b_comps = mr_decode_to_vec::<DateOps>(&datemr_encode(lit_b).unwrap()).unwrap();
+        let enc_a = datemr_encode(lit_a).unwrap();
+        let enc_b = datemr_encode(lit_b).unwrap();
+
+        assert_eq!(
+            datemr_overlaps(&enc_a, &enc_b).unwrap(),
+            lift_overlaps::<DateOps>(&a_comps, &b_comps),
+            "DATEMULTIRANGE overlaps failed for: {} vs {}",
+            lit_a,
+            lit_b
+        );
+        assert_eq!(
+            datemr_contains_range(&enc_a, &enc_b).unwrap(),
+            lift_contains_range::<DateOps>(&a_comps, &b_comps),
+            "DATEMULTIRANGE contains_range failed for: {} vs {}",
+            lit_a,
+            lit_b
+        );
+        assert_eq!(
+            mr_decode_to_vec::<DateOps>(&datemr_intersect(&enc_a, &enc_b).unwrap()).unwrap(),
+            lift_intersect::<DateOps>(&a_comps, &b_comps),
+            "DATEMULTIRANGE intersect failed for: {} vs {}",
+            lit_a,
+            lit_b
+        );
+        assert_eq!(
+            mr_decode_to_vec::<DateOps>(&datemr_merge(&enc_a, &enc_b).unwrap()).unwrap(),
+            lift_merge::<DateOps>(&a_comps, &b_comps),
+            "DATEMULTIRANGE merge failed for: {} vs {}",
+            lit_a,
+            lit_b
+        );
+        assert_eq!(
+            mr_decode_to_vec::<DateOps>(&datemr_difference(&enc_a, &enc_b).unwrap()).unwrap(),
+            lift_difference::<DateOps>(&a_comps, &b_comps),
+            "DATEMULTIRANGE difference failed for: {} vs {}",
+            lit_a,
+            lit_b
+        );
+    }
+}
+
+#[test]
+fn prop_dtmr_algebra_matches_lifted() {
+    for (lit_a, lit_b) in dt_mr_cases() {
+        let a_comps = mr_decode_to_vec::<DateTimeOps>(&dtmr_encode(lit_a).unwrap()).unwrap();
+        let b_comps = mr_decode_to_vec::<DateTimeOps>(&dtmr_encode(lit_b).unwrap()).unwrap();
+        let enc_a = dtmr_encode(lit_a).unwrap();
+        let enc_b = dtmr_encode(lit_b).unwrap();
+
+        assert_eq!(
+            dtmr_overlaps(&enc_a, &enc_b).unwrap(),
+            lift_overlaps::<DateTimeOps>(&a_comps, &b_comps),
+            "DATETIMEMULTIRANGE overlaps failed for: {} vs {}",
+            lit_a,
+            lit_b
+        );
+        assert_eq!(
+            dtmr_contains_range(&enc_a, &enc_b).unwrap(),
+            lift_contains_range::<DateTimeOps>(&a_comps, &b_comps),
+            "DATETIMEMULTIRANGE contains_range failed for: {} vs {}",
+            lit_a,
+            lit_b
+        );
+        assert_eq!(
+            mr_decode_to_vec::<DateTimeOps>(&dtmr_intersect(&enc_a, &enc_b).unwrap()).unwrap(),
+            lift_intersect::<DateTimeOps>(&a_comps, &b_comps),
+            "DATETIMEMULTIRANGE intersect failed for: {} vs {}",
+            lit_a,
+            lit_b
+        );
+        assert_eq!(
+            mr_decode_to_vec::<DateTimeOps>(&dtmr_merge(&enc_a, &enc_b).unwrap()).unwrap(),
+            lift_merge::<DateTimeOps>(&a_comps, &b_comps),
+            "DATETIMEMULTIRANGE merge failed for: {} vs {}",
+            lit_a,
+            lit_b
+        );
+        assert_eq!(
+            mr_decode_to_vec::<DateTimeOps>(&dtmr_difference(&enc_a, &enc_b).unwrap()).unwrap(),
+            lift_difference::<DateTimeOps>(&a_comps, &b_comps),
+            "DATETIMEMULTIRANGE difference failed for: {} vs {}",
+            lit_a,
+            lit_b
+        );
     }
 }

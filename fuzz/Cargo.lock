@@ -285,7 +285,7 @@ checksum = "e6e4313cd5fcd3dad5cafa179702e2b244f760991f45397d14d4ebf38247da75"
 
 [[package]]
 name = "villagesql"
-version = "0.0.1"
+version = "0.0.6"
 dependencies = [
  "paste",
  "villagesql-sys",
@@ -293,11 +293,11 @@ dependencies = [
 
 [[package]]
 name = "villagesql-sys"
-version = "0.0.1"
+version = "0.0.6"
 
 [[package]]
 name = "vsql_ranger_arranger"
-version = "0.1.0"
+version = "0.1.9"
 dependencies = [
  "chrono",
  "villagesql",

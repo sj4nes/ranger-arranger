@@ -24,7 +24,13 @@ use func::extract::{
     lower_for, lower_inc_for, multirange_lower, multirange_make, upper_for, upper_inc_for,
 };
 use func::predicates::{pred_binary, pred_flag};
-use func::setops::{difference_for, intersect_for, length_for, merge_for, union_for};
+use func::setops::{
+    datemr_contains_range, datemr_difference, datemr_intersect, datemr_merge, datemr_overlaps,
+    difference_for, dtmr_contains_range, dtmr_difference, dtmr_intersect, dtmr_merge,
+    dtmr_overlaps, int4mr_contains_range, int4mr_difference, int4mr_intersect, int4mr_merge,
+    int4mr_overlaps, int8mr_contains_range, int8mr_difference, int8mr_intersect, int8mr_merge,
+    int8mr_overlaps, intersect_for, length_for, merge_for, union_for,
+};
 
 // Null guard for VDF impl entry points. Every VDF impl checks this before
 // delegating to its helper, matching the release checklist requirement that null
@@ -545,6 +551,131 @@ fn dtmr_lower_impl(a: &[InValue]) -> VdfReturn {
     multirange_lower(multirange_types::dtmr_decode, "DATETIMEMULTIRANGE")(a)
 }
 
+// ── multirange algebra VDF impls ──
+fn int8mr_overlaps_impl(a: &[InValue]) -> VdfReturn {
+    if let Some(ret) = guard_null(a) {
+        return ret;
+    }
+    int8mr_overlaps(a)
+}
+fn int8mr_contains_range_impl(a: &[InValue]) -> VdfReturn {
+    if let Some(ret) = guard_null(a) {
+        return ret;
+    }
+    int8mr_contains_range(a)
+}
+fn int8mr_intersect_impl(a: &[InValue]) -> VdfReturn {
+    if let Some(ret) = guard_null(a) {
+        return ret;
+    }
+    int8mr_intersect(a)
+}
+fn int8mr_merge_impl(a: &[InValue]) -> VdfReturn {
+    if let Some(ret) = guard_null(a) {
+        return ret;
+    }
+    int8mr_merge(a)
+}
+fn int8mr_difference_impl(a: &[InValue]) -> VdfReturn {
+    if let Some(ret) = guard_null(a) {
+        return ret;
+    }
+    int8mr_difference(a)
+}
+
+fn int4mr_overlaps_impl(a: &[InValue]) -> VdfReturn {
+    if let Some(ret) = guard_null(a) {
+        return ret;
+    }
+    int4mr_overlaps(a)
+}
+fn int4mr_contains_range_impl(a: &[InValue]) -> VdfReturn {
+    if let Some(ret) = guard_null(a) {
+        return ret;
+    }
+    int4mr_contains_range(a)
+}
+fn int4mr_intersect_impl(a: &[InValue]) -> VdfReturn {
+    if let Some(ret) = guard_null(a) {
+        return ret;
+    }
+    int4mr_intersect(a)
+}
+fn int4mr_merge_impl(a: &[InValue]) -> VdfReturn {
+    if let Some(ret) = guard_null(a) {
+        return ret;
+    }
+    int4mr_merge(a)
+}
+fn int4mr_difference_impl(a: &[InValue]) -> VdfReturn {
+    if let Some(ret) = guard_null(a) {
+        return ret;
+    }
+    int4mr_difference(a)
+}
+
+fn datemr_overlaps_impl(a: &[InValue]) -> VdfReturn {
+    if let Some(ret) = guard_null(a) {
+        return ret;
+    }
+    datemr_overlaps(a)
+}
+fn datemr_contains_range_impl(a: &[InValue]) -> VdfReturn {
+    if let Some(ret) = guard_null(a) {
+        return ret;
+    }
+    datemr_contains_range(a)
+}
+fn datemr_intersect_impl(a: &[InValue]) -> VdfReturn {
+    if let Some(ret) = guard_null(a) {
+        return ret;
+    }
+    datemr_intersect(a)
+}
+fn datemr_merge_impl(a: &[InValue]) -> VdfReturn {
+    if let Some(ret) = guard_null(a) {
+        return ret;
+    }
+    datemr_merge(a)
+}
+fn datemr_difference_impl(a: &[InValue]) -> VdfReturn {
+    if let Some(ret) = guard_null(a) {
+        return ret;
+    }
+    datemr_difference(a)
+}
+
+fn dtmr_overlaps_impl(a: &[InValue]) -> VdfReturn {
+    if let Some(ret) = guard_null(a) {
+        return ret;
+    }
+    dtmr_overlaps(a)
+}
+fn dtmr_contains_range_impl(a: &[InValue]) -> VdfReturn {
+    if let Some(ret) = guard_null(a) {
+        return ret;
+    }
+    dtmr_contains_range(a)
+}
+fn dtmr_intersect_impl(a: &[InValue]) -> VdfReturn {
+    if let Some(ret) = guard_null(a) {
+        return ret;
+    }
+    dtmr_intersect(a)
+}
+fn dtmr_merge_impl(a: &[InValue]) -> VdfReturn {
+    if let Some(ret) = guard_null(a) {
+        return ret;
+    }
+    dtmr_merge(a)
+}
+fn dtmr_difference_impl(a: &[InValue]) -> VdfReturn {
+    if let Some(ret) = guard_null(a) {
+        return ret;
+    }
+    dtmr_difference(a)
+}
+
 villagesql::extension! {
     funcs: [
         // INT8RANGE (full surface) — VEF keys VDFs by (name, arg types), so each
@@ -628,6 +759,27 @@ villagesql::extension! {
         func!(datemr_lower_impl, "DATEMULTIRANGE_LOWER", [custom!("DATEMULTIRANGE")] -> Type::String, buffer_size: 0, deterministic: true),
         func!(dtmr_make_impl, "DATETIMEMULTIRANGE_MAKE", [Type::String] -> custom!("DATETIMEMULTIRANGE"), buffer_size: 0, deterministic: true),
         func!(dtmr_lower_impl, "DATETIMEMULTIRANGE_LOWER", [custom!("DATETIMEMULTIRANGE")] -> Type::String, buffer_size: 0, deterministic: true),
+        // multirange algebra
+        func!(int8mr_overlaps_impl, "INT8MULTIRANGE_OVERLAPS", [custom!("INT8MULTIRANGE"), custom!("INT8MULTIRANGE")] -> Type::Int, buffer_size: 0, deterministic: true),
+        func!(int8mr_contains_range_impl, "INT8MULTIRANGE_CONTAINS_RANGE", [custom!("INT8MULTIRANGE"), custom!("INT8MULTIRANGE")] -> Type::Int, buffer_size: 0, deterministic: true),
+        func!(int8mr_intersect_impl, "INT8MULTIRANGE_INTERSECT", [custom!("INT8MULTIRANGE"), custom!("INT8MULTIRANGE")] -> custom!("INT8MULTIRANGE"), buffer_size: 0, deterministic: true),
+        func!(int8mr_merge_impl, "INT8MULTIRANGE_MERGE", [custom!("INT8MULTIRANGE"), custom!("INT8MULTIRANGE")] -> custom!("INT8MULTIRANGE"), buffer_size: 0, deterministic: true),
+        func!(int8mr_difference_impl, "INT8MULTIRANGE_DIFFERENCE", [custom!("INT8MULTIRANGE"), custom!("INT8MULTIRANGE")] -> custom!("INT8MULTIRANGE"), buffer_size: 0, deterministic: true),
+        func!(int4mr_overlaps_impl, "INT4MULTIRANGE_OVERLAPS", [custom!("INT4MULTIRANGE"), custom!("INT4MULTIRANGE")] -> Type::Int, buffer_size: 0, deterministic: true),
+        func!(int4mr_contains_range_impl, "INT4MULTIRANGE_CONTAINS_RANGE", [custom!("INT4MULTIRANGE"), custom!("INT4MULTIRANGE")] -> Type::Int, buffer_size: 0, deterministic: true),
+        func!(int4mr_intersect_impl, "INT4MULTIRANGE_INTERSECT", [custom!("INT4MULTIRANGE"), custom!("INT4MULTIRANGE")] -> custom!("INT4MULTIRANGE"), buffer_size: 0, deterministic: true),
+        func!(int4mr_merge_impl, "INT4MULTIRANGE_MERGE", [custom!("INT4MULTIRANGE"), custom!("INT4MULTIRANGE")] -> custom!("INT4MULTIRANGE"), buffer_size: 0, deterministic: true),
+        func!(int4mr_difference_impl, "INT4MULTIRANGE_DIFFERENCE", [custom!("INT4MULTIRANGE"), custom!("INT4MULTIRANGE")] -> custom!("INT4MULTIRANGE"), buffer_size: 0, deterministic: true),
+        func!(datemr_overlaps_impl, "DATEMULTIRANGE_OVERLAPS", [custom!("DATEMULTIRANGE"), custom!("DATEMULTIRANGE")] -> Type::Int, buffer_size: 0, deterministic: true),
+        func!(datemr_contains_range_impl, "DATEMULTIRANGE_CONTAINS_RANGE", [custom!("DATEMULTIRANGE"), custom!("DATEMULTIRANGE")] -> Type::Int, buffer_size: 0, deterministic: true),
+        func!(datemr_intersect_impl, "DATEMULTIRANGE_INTERSECT", [custom!("DATEMULTIRANGE"), custom!("DATEMULTIRANGE")] -> custom!("DATEMULTIRANGE"), buffer_size: 0, deterministic: true),
+        func!(datemr_merge_impl, "DATEMULTIRANGE_MERGE", [custom!("DATEMULTIRANGE"), custom!("DATEMULTIRANGE")] -> custom!("DATEMULTIRANGE"), buffer_size: 0, deterministic: true),
+        func!(datemr_difference_impl, "DATEMULTIRANGE_DIFFERENCE", [custom!("DATEMULTIRANGE"), custom!("DATEMULTIRANGE")] -> custom!("DATEMULTIRANGE"), buffer_size: 0, deterministic: true),
+        func!(dtmr_overlaps_impl, "DATETIMEMULTIRANGE_OVERLAPS", [custom!("DATETIMEMULTIRANGE"), custom!("DATETIMEMULTIRANGE")] -> Type::Int, buffer_size: 0, deterministic: true),
+        func!(dtmr_contains_range_impl, "DATETIMEMULTIRANGE_CONTAINS_RANGE", [custom!("DATETIMEMULTIRANGE"), custom!("DATETIMEMULTIRANGE")] -> Type::Int, buffer_size: 0, deterministic: true),
+        func!(dtmr_intersect_impl, "DATETIMEMULTIRANGE_INTERSECT", [custom!("DATETIMEMULTIRANGE"), custom!("DATETIMEMULTIRANGE")] -> custom!("DATETIMEMULTIRANGE"), buffer_size: 0, deterministic: true),
+        func!(dtmr_merge_impl, "DATETIMEMULTIRANGE_MERGE", [custom!("DATETIMEMULTIRANGE"), custom!("DATETIMEMULTIRANGE")] -> custom!("DATETIMEMULTIRANGE"), buffer_size: 0, deterministic: true),
+        func!(dtmr_difference_impl, "DATETIMEMULTIRANGE_DIFFERENCE", [custom!("DATETIMEMULTIRANGE"), custom!("DATETIMEMULTIRANGE")] -> custom!("DATETIMEMULTIRANGE"), buffer_size: 0, deterministic: true),
     ],
     types: [
         custom_type!(

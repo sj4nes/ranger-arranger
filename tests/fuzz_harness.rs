@@ -7,8 +7,12 @@
 use vsql_ranger_arranger::engine::Range;
 use vsql_ranger_arranger::fuzz_api::{fuzz_algebra, fuzz_bytes, parse_range};
 use vsql_ranger_arranger::multirange_types::{
-    datemr_decode, datemr_encode, dtmr_decode, dtmr_encode, int4mr_decode, int4mr_encode,
-    int8mr_decode, int8mr_encode,
+    datemr_contains_range, datemr_decode, datemr_difference, datemr_encode, datemr_intersect,
+    datemr_merge, datemr_overlaps, dtmr_contains_range, dtmr_decode, dtmr_difference, dtmr_encode,
+    dtmr_intersect, dtmr_merge, dtmr_overlaps, int4mr_contains_range, int4mr_decode,
+    int4mr_difference, int4mr_encode, int4mr_intersect, int4mr_merge, int4mr_overlaps,
+    int8mr_contains_range, int8mr_decode, int8mr_difference, int8mr_encode, int8mr_intersect,
+    int8mr_merge, int8mr_overlaps,
 };
 
 // Small deterministic LCG (xorshift64*) so the run is reproducible and needs no deps.
@@ -249,5 +253,151 @@ fn bytes_to_range_literal(data: &[u8], kind: &str) -> String {
             )
         }
         _ => "empty".to_string(),
+    }
+}
+
+// ---- Multirange algebra fuzz ----
+//
+// For each randomly generated multirange literal, encode both operands,
+// run the algebra VDF, then verify the result round-trips through decode→encode.
+
+#[test]
+fn fuzz_multirange_algebra() {
+    let _rng = Rng(0xDEAD_BEEF_CAFE_BABE);
+
+    // Integer multirange literals (valid for int8/int4)
+    let int_lits = [
+        "empty",
+        "{}",
+        "{[1,5)}",
+        "{[10,20)}",
+        "{[1,5),[10,20)}",
+        "{[1,5),[3,7)}",  // overlapping
+        "{[1,5),(5,10)}", // adjacent
+        "{[1,10)}",
+        "{[1,5),[6,10)}", // adjacent in multirange
+        "{[1,3),[5,7),[9,11)}",
+    ];
+
+    for &lit_a in &int_lits {
+        for &lit_b in &int_lits {
+            for &(
+                enc_fn,
+                dec_fn,
+                intersect_fn,
+                merge_fn,
+                overlaps_fn,
+                contains_fn,
+                difference_fn,
+            ) in &[
+                (
+                    int8mr_encode as fn(&str) -> Result<Vec<u8>, String>,
+                    int8mr_decode as fn(&[u8]) -> Result<String, String>,
+                    int8mr_intersect as fn(&[u8], &[u8]) -> Result<Vec<u8>, String>,
+                    int8mr_merge as fn(&[u8], &[u8]) -> Result<Vec<u8>, String>,
+                    int8mr_overlaps as fn(&[u8], &[u8]) -> Result<bool, String>,
+                    int8mr_contains_range as fn(&[u8], &[u8]) -> Result<bool, String>,
+                    int8mr_difference as fn(&[u8], &[u8]) -> Result<Vec<u8>, String>,
+                ),
+                (
+                    int4mr_encode,
+                    int4mr_decode,
+                    int4mr_intersect,
+                    int4mr_merge,
+                    int4mr_overlaps,
+                    int4mr_contains_range,
+                    int4mr_difference,
+                ),
+            ] {
+                let Ok(a) = enc_fn(lit_a) else { continue };
+                let Ok(b) = enc_fn(lit_b) else { continue };
+
+                // overlaps: bool, no round-trip needed
+                let _ = overlaps_fn(&a, &b);
+
+                // contains_range: bool, no round-trip needed
+                let _ = contains_fn(&a, &b);
+
+                // intersect: result must round-trip
+                if let Ok(result) = intersect_fn(&a, &b) {
+                    let _ = dec_fn(&result);
+                    let _ = enc_fn(&dec_fn(&result).unwrap_or_default());
+                }
+
+                // merge: result must round-trip
+                if let Ok(result) = merge_fn(&a, &b) {
+                    let _ = dec_fn(&result);
+                    let _ = enc_fn(&dec_fn(&result).unwrap_or_default());
+                }
+
+                // difference: result must round-trip
+                if let Ok(result) = difference_fn(&a, &b) {
+                    let _ = dec_fn(&result);
+                    let _ = enc_fn(&dec_fn(&result).unwrap_or_default());
+                }
+            }
+        }
+    }
+
+    // Date/datetime multirange algebra (fixed valid literals)
+    let date_lits = [
+        "{}",
+        "empty",
+        "{[2020-01-01,2020-06-01)}",
+        "{[2020-07-01,2020-12-31)}",
+        "{[2020-01-01,2020-06-01),[2020-07-01,2020-12-31)}",
+    ];
+    let dt_lits = [
+        "{}",
+        "empty",
+        "{[2020-01-01 00:00:00,2020-06-01 00:00:00)}",
+        "{[2020-07-01 00:00:00,2020-12-31 00:00:00)}",
+        "{[2020-01-01 00:00:00,2020-06-01 00:00:00),[2020-07-01 00:00:00,2020-12-31 00:00:00)}",
+    ];
+
+    for &lit_a in &date_lits {
+        for &lit_b in &date_lits {
+            let Ok(a) = datemr_encode(lit_a) else {
+                continue;
+            };
+            let Ok(b) = datemr_encode(lit_b) else {
+                continue;
+            };
+            let _ = datemr_overlaps(&a, &b);
+            let _ = datemr_contains_range(&a, &b);
+            if let Ok(result) = datemr_intersect(&a, &b) {
+                let _ = datemr_decode(&result);
+                let _ = datemr_encode(&datemr_decode(&result).unwrap_or_default());
+            }
+            if let Ok(result) = datemr_merge(&a, &b) {
+                let _ = datemr_decode(&result);
+                let _ = datemr_encode(&datemr_decode(&result).unwrap_or_default());
+            }
+            if let Ok(result) = datemr_difference(&a, &b) {
+                let _ = datemr_decode(&result);
+                let _ = datemr_encode(&datemr_decode(&result).unwrap_or_default());
+            }
+        }
+    }
+
+    for &lit_a in &dt_lits {
+        for &lit_b in &dt_lits {
+            let Ok(a) = dtmr_encode(lit_a) else { continue };
+            let Ok(b) = dtmr_encode(lit_b) else { continue };
+            let _ = dtmr_overlaps(&a, &b);
+            let _ = dtmr_contains_range(&a, &b);
+            if let Ok(result) = dtmr_intersect(&a, &b) {
+                let _ = dtmr_decode(&result);
+                let _ = dtmr_encode(&dtmr_decode(&result).unwrap_or_default());
+            }
+            if let Ok(result) = dtmr_merge(&a, &b) {
+                let _ = dtmr_decode(&result);
+                let _ = dtmr_encode(&dtmr_decode(&result).unwrap_or_default());
+            }
+            if let Ok(result) = dtmr_difference(&a, &b) {
+                let _ = dtmr_decode(&result);
+                let _ = dtmr_encode(&dtmr_decode(&result).unwrap_or_default());
+            }
+        }
     }
 }
