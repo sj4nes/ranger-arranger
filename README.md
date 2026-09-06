@@ -5,12 +5,16 @@ built against the `vsql-rust-sdk`.
 
 ## Types
 
-| SQL type        | subtype     | discrete | endpoint width |
-|-----------------|-------------|----------|----------------|
-| `INT8RANGE`     | `Int8Ops`   | yes      | 8 |
-| `INT4RANGE`     | `Int4Ops`   | yes      | 4 |
-| `DATERANGE`     | `DateOps`   | yes      | 8 (days) |
-| `DATETIMERANGE` | `DateTimeOps`| no      | 8 (micros) |
+| SQL type         | subtype     | discrete | endpoint width |
+|------------------|-------------|----------|----------------|
+| `INT8RANGE`      | `Int8Ops`   | yes      | 8 |
+| `INT4RANGE`      | `Int4Ops`   | yes      | 4 |
+| `DATERANGE`      | `DateOps`   | yes      | 8 (days) |
+| `DATETIMERANGE`  | `DateTimeOps`| no      | 8 (micros) |
+| `INT8MULTIRANGE` | multirange  | yes      | variable |
+| `INT4MULTIRANGE` | multirange  | yes      | variable |
+| `DATEMULTIRANGE` | multirange  | yes      | variable |
+| `DATETIMEMULTIRANGE` | multirange | no    | variable |
 
 Discrete types canonicalize to lower-inclusive / upper-exclusive `[)`;
 continuous (`DATETIMERANGE`) preserve the supplied bound inclusivity.
@@ -30,6 +34,10 @@ subtype exposes the same surface:
 - Set ops: `<T>_INTERSECT`, `<T>_MERGE`, `<T>_UNION`, `<T>_DIFFERENCE`
   (anti-lossy: returns a JSON array of pieces, never a single lossy range),
   `<T>_LENGTH`.
+- Multirange constructors: `<MR>_MAKE`.
+- Multirange extract: `<MR>_LOWER`.
+- Multirange predicates: `<MR>_OVERLAPS`, `<MR>_CONTAINS_RANGE`.
+- Multirange set ops: `<MR>_INTERSECT`, `<MR>_MERGE`, `<MR>_DIFFERENCE`.
 
 ## Usage
 
