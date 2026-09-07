@@ -780,6 +780,11 @@ villagesql::extension! {
         func!(dtmr_intersect_impl, "DATETIMEMULTIRANGE_INTERSECT", [custom!("DATETIMEMULTIRANGE"), custom!("DATETIMEMULTIRANGE")] -> custom!("DATETIMEMULTIRANGE"), buffer_size: 0, deterministic: true),
         func!(dtmr_merge_impl, "DATETIMEMULTIRANGE_MERGE", [custom!("DATETIMEMULTIRANGE"), custom!("DATETIMEMULTIRANGE")] -> custom!("DATETIMEMULTIRANGE"), buffer_size: 0, deterministic: true),
         func!(dtmr_difference_impl, "DATETIMEMULTIRANGE_DIFFERENCE", [custom!("DATETIMEMULTIRANGE"), custom!("DATETIMEMULTIRANGE")] -> custom!("DATETIMEMULTIRANGE"), buffer_size: 0, deterministic: true),
+        // multirange aggregation
+        func::range_agg::INT8MULTIRANGE_RANGE_AGG_DESC,
+        func::range_agg::INT4MULTIRANGE_RANGE_AGG_DESC,
+        func::range_agg::DATEMULTIRANGE_RANGE_AGG_DESC,
+        func::range_agg::DATETIMEMULTIRANGE_RANGE_AGG_DESC,
     ],
     types: [
         custom_type!(

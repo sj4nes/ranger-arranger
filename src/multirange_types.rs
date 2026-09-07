@@ -426,6 +426,13 @@ fn mr_union_inner<T: RangeSubtypeOps>(
     mr_encode_components::<T>(&normalized)
 }
 
+pub fn mr_merge_buffers<T: RangeSubtypeOps>(
+    a_buf: &[u8],
+    b_buf: &[u8],
+) -> Result<Vec<u8>, String> {
+    mr_union_inner::<T>(a_buf, b_buf)
+}
+
 pub fn mr_decode_to_vec<T: RangeSubtypeOps>(
     buf: &[u8],
 ) -> Result<Vec<crate::engine::Range>, String> {

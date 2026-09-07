@@ -1,6 +1,6 @@
 // Extraction (FR-7.2): RANGE_LOWER/UPPER/BOUNDS + flag accessors. AD-4.
-use crate::engine::canonical::range_to_bytes;
 use crate::engine::RangeSubtypeOps;
+use crate::engine::canonical::range_to_bytes;
 use crate::engine::canonical::to_range;
 use crate::multirange_types;
 use crate::subtype;
