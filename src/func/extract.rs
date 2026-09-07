@@ -1,4 +1,5 @@
 // Extraction (FR-7.2): RANGE_LOWER/UPPER/BOUNDS + flag accessors. AD-4.
+use crate::engine::canonical::range_to_bytes;
 use crate::engine::RangeSubtypeOps;
 use crate::engine::canonical::to_range;
 use crate::multirange_types;
@@ -217,30 +218,25 @@ pub fn multirange_upper_inc(type_name: &str) -> impl Fn(&[InValue]) -> VdfReturn
     }
 }
 
-pub fn multirange_isempty(type_name: &str) -> impl Fn(&[InValue]) -> VdfReturn {
+pub fn multirange_isempty<T: RangeSubtypeOps>() -> impl Fn(&[InValue]) -> VdfReturn {
     move |args: &[InValue]| -> VdfReturn {
         match args.first() {
             Some(InValue::Custom(a)) => {
-                let empty = multirange_types::mr_decode_to_vec::<
-                    subtype::int8::Int8Ops,
-                >(a)
-                .map(|c| c.is_empty())
-                .unwrap_or(true);
+                let empty = multirange_types::mr_decode_to_vec::<T>(a)
+                    .map(|c| c.is_empty())
+                    .unwrap_or(true);
                 VdfReturn::int(if empty { 1 } else { 0 })
             }
             Some(InValue::Null) => VdfReturn::null(),
-            _ => VdfReturn::error(format!("{type_name}_ISEMPTY: expected (custom)")),
+            _ => VdfReturn::error("MULTIRANGE_ISEMPTY: expected (custom)"),
         }
     }
 }
 
-pub fn multirange_length(type_name: &str) -> impl Fn(&[InValue]) -> VdfReturn {
+pub fn multirange_length<T: RangeSubtypeOps>() -> impl Fn(&[InValue]) -> VdfReturn {
     move |args: &[InValue]| -> VdfReturn {
         match args.first() {
-            Some(InValue::Custom(a)) => match multirange_types::mr_decode_to_vec::<
-                subtype::int8::Int8Ops,
-            >(a)
-            {
+            Some(InValue::Custom(a)) => match multirange_types::mr_decode_to_vec::<T>(a) {
                 Ok(comps) => {
                     let len = comps.len();
                     VdfReturn::int(len as i64)
@@ -248,7 +244,7 @@ pub fn multirange_length(type_name: &str) -> impl Fn(&[InValue]) -> VdfReturn {
                 Err(e) => VdfReturn::error(e),
             },
             Some(InValue::Null) => VdfReturn::null(),
-            _ => VdfReturn::error(format!("{type_name}_LENGTH: expected (custom)")),
+            _ => VdfReturn::error("MULTIRANGE_LENGTH: expected (custom)"),
         }
     }
 }
@@ -260,10 +256,10 @@ pub fn int8mr_upper_inc(args: &[InValue]) -> VdfReturn {
     multirange_upper_inc("INT8MULTIRANGE")(args)
 }
 pub fn int8mr_isempty(args: &[InValue]) -> VdfReturn {
-    multirange_isempty("INT8MULTIRANGE")(args)
+    multirange_isempty::<subtype::int8::Int8Ops>()(args)
 }
 pub fn int8mr_length(args: &[InValue]) -> VdfReturn {
-    multirange_length("INT8MULTIRANGE")(args)
+    multirange_length::<subtype::int8::Int8Ops>()(args)
 }
 
 pub fn int4mr_upper(args: &[InValue]) -> VdfReturn {
@@ -273,10 +269,10 @@ pub fn int4mr_upper_inc(args: &[InValue]) -> VdfReturn {
     multirange_upper_inc("INT4MULTIRANGE")(args)
 }
 pub fn int4mr_isempty(args: &[InValue]) -> VdfReturn {
-    multirange_isempty("INT4MULTIRANGE")(args)
+    multirange_isempty::<subtype::int4::Int4Ops>()(args)
 }
 pub fn int4mr_length(args: &[InValue]) -> VdfReturn {
-    multirange_length("INT4MULTIRANGE")(args)
+    multirange_length::<subtype::int4::Int4Ops>()(args)
 }
 
 pub fn datemr_upper(args: &[InValue]) -> VdfReturn {
@@ -286,10 +282,10 @@ pub fn datemr_upper_inc(args: &[InValue]) -> VdfReturn {
     multirange_upper_inc("DATEMULTIRANGE")(args)
 }
 pub fn datemr_isempty(args: &[InValue]) -> VdfReturn {
-    multirange_isempty("DATEMULTIRANGE")(args)
+    multirange_isempty::<subtype::date::DateOps>()(args)
 }
 pub fn datemr_length(args: &[InValue]) -> VdfReturn {
-    multirange_length("DATEMULTIRANGE")(args)
+    multirange_length::<subtype::date::DateOps>()(args)
 }
 
 pub fn dtmr_upper(args: &[InValue]) -> VdfReturn {
@@ -299,8 +295,59 @@ pub fn dtmr_upper_inc(args: &[InValue]) -> VdfReturn {
     multirange_upper_inc("DATETIMEMULTIRANGE")(args)
 }
 pub fn dtmr_isempty(args: &[InValue]) -> VdfReturn {
-    multirange_isempty("DATETIMEMULTIRANGE")(args)
+    multirange_isempty::<subtype::datetime::DateTimeOps>()(args)
 }
 pub fn dtmr_length(args: &[InValue]) -> VdfReturn {
-    multirange_length("DATETIMEMULTIRANGE")(args)
+    multirange_length::<subtype::datetime::DateTimeOps>()(args)
+}
+
+// ── Slice 3: multirange element accessors ──
+
+pub fn multirange_nth<T: RangeSubtypeOps>(
+    type_name: &str,
+) -> impl Fn(&[InValue]) -> VdfReturn {
+    move |args: &[InValue]| -> VdfReturn {
+        let idx = match args.first() {
+            Some(InValue::Int(i)) => *i as usize,
+            Some(InValue::Null) => return VdfReturn::null(),
+            _ => {
+                return VdfReturn::error(format!(
+                    "{type_name}_NTH: expected (integer, custom)"
+                ))
+            }
+        };
+        let bytes = match args.get(1) {
+            Some(InValue::Custom(a)) => a,
+            Some(InValue::Null) => return VdfReturn::null(),
+            _ => {
+                return VdfReturn::error(format!(
+                    "{type_name}_NTH: expected (integer, custom)"
+                ))
+            }
+        };
+        match multirange_types::mr_decode_to_vec::<T>(bytes) {
+            Ok(comps) => {
+                if comps.is_empty() || idx >= comps.len() {
+                    return VdfReturn::null();
+                }
+                let comp = &comps[idx];
+                let encoded = range_to_bytes::<T>(comp);
+                VdfReturn::binary(encoded)
+            }
+            Err(e) => VdfReturn::error(e),
+        }
+    }
+}
+
+pub fn int8mr_nth(args: &[InValue]) -> VdfReturn {
+    multirange_nth::<subtype::int8::Int8Ops>("INT8MULTIRANGE")(args)
+}
+pub fn int4mr_nth(args: &[InValue]) -> VdfReturn {
+    multirange_nth::<subtype::int4::Int4Ops>("INT4MULTIRANGE")(args)
+}
+pub fn datemr_nth(args: &[InValue]) -> VdfReturn {
+    multirange_nth::<subtype::date::DateOps>("DATEMULTIRANGE")(args)
+}
+pub fn dtmr_nth(args: &[InValue]) -> VdfReturn {
+    multirange_nth::<subtype::datetime::DateTimeOps>("DATETIMEMULTIRANGE")(args)
 }

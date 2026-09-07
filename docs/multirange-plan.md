@@ -78,27 +78,51 @@ Tests:
 - unit: `empty` is empty; `{[1,5)}` is not
 - unit: length of empty -> 0; length of `{[1,5)}` -> 4 for int8
 
-## Slice 3 — range_agg and unnest
+## Slice 3 — multirange accessors: `NTH`, `LENGTH`, `RANGE_AGG`
 
-### 3a. `RANGE_AGG` / `MR_ACCUM`
-
-SQL shape:
-- `INT8RANGE_AGG(col) -> INT8MULTIRANGE` over a grouped result set
-- or `MR_ACCUM(multirange, range)` accumulator
-
-This is a state-transition function, not a pure VDF. If the VEF surface does not
-yet expose stateful aggregates, mark this as blocked on SDK support and skip.
-
-If stateful aggregates are available:
-- `src/func/aggregate.rs` (new) — accumulate ranges into a multirange buffer
-- `src/lib.rs` — register
-
-### 3b. `MR_UNNEST`
+### 3a. `<MR>_NTH(mr, n)`
 
 SQL shape:
-- `INT8MULTIRANGE_UNNEST(m)` returns set of `INT8RANGE`
+- `INT8MULTIRANGE_NTH(m, n)` -> binary multirange containing exactly one component
+- Same for INT4, DATE, DATETIME
+- `n` is 1-based; out-of-range/empty -> NULL
 
-Same blocker as 3a. If unavailable, defer.
+Engine work:
+- `src/func/setops.rs` — new `multirange_nth` helper: decode -> pick component -> re-encode single range
+- `src/lib.rs` — register for each type
+
+Tests:
+- unit: nth of `{[1,3),[7,10)}` -> `{[7,10)}`
+- unit: nth out of range -> NULL
+- unit: nth on empty multirange -> NULL
+
+### 3b. `<MR>_LENGTH`
+
+SQL shape:
+- `INT8MULTIRANGE_LENGTH(m)` -> INT component count
+
+Engine work:
+- `src/func/setops.rs` — new `multirange_length` helper: decode -> count components
+- `src/lib.rs` — register for each type
+
+Tests:
+- unit: length of `{}` -> 0
+- unit: length of `{[1,3),[7,10)}` -> 2
+
+### 3c. `<MR>_RANGE_AGG`
+
+SQL shape:
+- `INT8MULTIRANGE_RANGE_AGG(range, ...)` -> multirange aggregating all input ranges
+- Accepts varargs multirange values; decodes each, concatenates components, normalizes, re-encodes
+
+Engine work:
+- `src/func/setops.rs` — new `multirange_range_agg` helper
+- `src/lib.rs` — register for each type
+
+Tests:
+- unit: aggregate disjoint ranges -> merged multirange
+- unit: aggregate overlapping ranges -> deduped multirange
+- unit: aggregate NULL -> ignores NULLs
 
 ## Slice 4 — exclusion constraint primitive
 
