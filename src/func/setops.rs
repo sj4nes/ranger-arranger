@@ -264,3 +264,42 @@ fn multirange_binary_set(op: MultirangeSetOp) -> impl Fn(&[InValue]) -> VdfRetur
         }
     }
 }
+
+#[allow(dead_code)]
+pub fn multirange_union(op: MultirangeSetOp) -> impl Fn(&[InValue]) -> VdfReturn {
+    multirange_binary_set(op)
+}
+
+// Slice 1 wrappers: element containment + multirange UNION.
+#[allow(dead_code)]
+pub fn int8mr_contains_element(args: &[InValue]) -> VdfReturn {
+    multirange_binary_pred(multirange_types::int8mr_contains_element)(args)
+}
+#[allow(dead_code)]
+pub fn int8mr_union(args: &[InValue]) -> VdfReturn {
+    multirange_binary_set(multirange_types::int8mr_union)(args)
+}
+#[allow(dead_code)]
+pub fn int4mr_contains_element(args: &[InValue]) -> VdfReturn {
+    multirange_binary_pred(multirange_types::int4mr_contains_element)(args)
+}
+#[allow(dead_code)]
+pub fn int4mr_union(args: &[InValue]) -> VdfReturn {
+    multirange_binary_set(multirange_types::int4mr_union)(args)
+}
+#[allow(dead_code)]
+pub fn datemr_contains_element(args: &[InValue]) -> VdfReturn {
+    multirange_binary_pred(multirange_types::datemr_contains_element)(args)
+}
+#[allow(dead_code)]
+pub fn datemr_union(args: &[InValue]) -> VdfReturn {
+    multirange_binary_set(multirange_types::datemr_union)(args)
+}
+#[allow(dead_code)]
+pub fn dtmr_contains_element(args: &[InValue]) -> VdfReturn {
+    multirange_binary_pred(multirange_types::dtmr_contains_element)(args)
+}
+#[allow(dead_code)]
+pub fn dtmr_union(args: &[InValue]) -> VdfReturn {
+    multirange_binary_set(multirange_types::dtmr_union)(args)
+}

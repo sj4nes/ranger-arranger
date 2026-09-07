@@ -1,4 +1,4 @@
-use villagesql::VdfReturn;
+use villagesql::{InValue, VdfReturn};
 use vsql_ranger_arranger::engine::Range;
 use vsql_ranger_arranger::multirange_types::{
     datemr_encode, int4mr_encode, int8mr_decode, int8mr_encode, mr_decode_to_vec,
@@ -7,6 +7,100 @@ use vsql_ranger_arranger::multirange_types::{
 use vsql_ranger_arranger::subtype::{
     date::DateOps, datetime::DateTimeOps, int4::Int4Ops, int8::Int8Ops,
 };
+
+// Slice 1 gap tests: element containment + multirange UNION.
+mod element_union_gaps {
+    use super::*;
+    use vsql_ranger_arranger::func::setops::{
+        datemr_contains_element, datemr_union, dtmr_contains_element, dtmr_union,
+        int4mr_contains_element, int4mr_union, int8mr_contains_element, int8mr_union,
+    };
+
+    fn custom(buf: &[u8]) -> InValue<'_> {
+        InValue::Custom(buf)
+    }
+
+    #[test]
+    fn multirange_union_merges_components() {
+        let a = int8mr_encode("{[1,2),[5,6)}").unwrap();
+        let b = int8mr_encode("{[3,4)}").unwrap();
+        let merged = match int8mr_union(&[custom(&a), custom(&b)]) {
+            VdfReturn::Binary(bytes) => bytes,
+            other => panic!("expected Binary, got {:?}", other),
+        };
+        let comps = mr_decode_to_vec::<Int8Ops>(&merged).unwrap();
+        assert_eq!(comps.len(), 3);
+        assert!(!comps[0].empty);
+    }
+
+    #[test]
+    fn multirange_contains_element_true_when_contained() {
+        let mr = int8mr_encode("{[1,5)}").unwrap();
+        let range_buf = vsql_ranger_arranger::engine::canonical::range_to_bytes::<Int8Ops>(
+            &vsql_ranger_arranger::engine::Range {
+                empty: false,
+                lower_inf: false,
+                upper_inf: false,
+                lower_inc: true,
+                upper_inc: false,
+                lower: 3,
+                upper: 4,
+            },
+        );
+        assert!(matches!(
+            int8mr_contains_element(&[custom(&range_buf), custom(&mr)]),
+            VdfReturn::Int(1)
+        ));
+    }
+
+    #[test]
+    fn multirange_contains_element_false_when_not_contained() {
+        let mr = int8mr_encode("{[1,2),[5,6)}").unwrap();
+        let range_buf = vsql_ranger_arranger::engine::canonical::range_to_bytes::<Int8Ops>(
+            &vsql_ranger_arranger::engine::Range {
+                empty: false,
+                lower_inf: false,
+                upper_inf: false,
+                lower_inc: true,
+                upper_inc: false,
+                lower: 3,
+                upper: 4,
+            },
+        );
+        assert!(matches!(
+            int8mr_contains_element(&[custom(&range_buf), custom(&mr)]),
+            VdfReturn::Int(0)
+        ));
+    }
+
+    #[test]
+    fn multirange_contains_element_null_propagates() {
+        let cases: &[fn(&[InValue<'_>]) -> VdfReturn] = &[
+            int8mr_contains_element,
+            int4mr_contains_element,
+            datemr_contains_element,
+            dtmr_contains_element,
+        ];
+        for f in cases {
+            assert!(matches!(f(&[InValue::Null, custom(&[])]), VdfReturn::Null));
+            assert!(matches!(f(&[custom(&[]), InValue::Null]), VdfReturn::Null));
+        }
+    }
+
+    #[test]
+    fn multirange_union_null_propagates() {
+        let cases: &[fn(&[InValue<'_>]) -> VdfReturn] = &[
+            int8mr_union,
+            int4mr_union,
+            datemr_union,
+            dtmr_union,
+        ];
+        for f in cases {
+            assert!(matches!(f(&[InValue::Null, custom(&[])]), VdfReturn::Null));
+            assert!(matches!(f(&[custom(&[]), InValue::Null]), VdfReturn::Null));
+        }
+    }
+}
 
 // Null/error branch coverage for multirange setops entry points.
 mod setops_gaps {
@@ -56,7 +150,6 @@ mod setops_gaps {
     fn null_second_arg_propagates() {
         let cases: &[fn(&[InValue<'_>]) -> VdfReturn] = &[
             int8mr_overlaps,
-            int8mr_contains_range,
             int8mr_intersect,
             int8mr_merge,
             int8mr_difference,

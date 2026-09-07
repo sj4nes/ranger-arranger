@@ -406,6 +406,26 @@ fn mr_difference_inner<T: RangeSubtypeOps>(a_buf: &[u8], b_buf: &[u8]) -> Result
     mr_encode_components::<T>(&normalized)
 }
 
+fn mr_contains_element_inner<T: RangeSubtypeOps>(
+    range_buf: &[u8],
+    multirange_buf: &[u8],
+) -> Result<bool, String> {
+    let range = crate::engine::canonical::to_range::<T>(range_buf)?;
+    let components = mr_decode_to_vec::<T>(multirange_buf)?;
+    Ok(components.iter().any(|c| crate::engine::contains_range(c, &range)))
+}
+
+fn mr_union_inner<T: RangeSubtypeOps>(
+    a_buf: &[u8],
+    b_buf: &[u8],
+) -> Result<Vec<u8>, String> {
+    let mut combined = mr_decode_to_vec::<T>(a_buf)?;
+    let mut b_comps = mr_decode_to_vec::<T>(b_buf)?;
+    combined.append(&mut b_comps);
+    let normalized = normalize_components::<T>(combined)?;
+    mr_encode_components::<T>(&normalized)
+}
+
 pub fn mr_decode_to_vec<T: RangeSubtypeOps>(
     buf: &[u8],
 ) -> Result<Vec<crate::engine::Range>, String> {
@@ -496,12 +516,24 @@ pub fn int8mr_merge(a: &[u8], b: &[u8]) -> Result<Vec<u8>, String> {
 pub fn int8mr_difference(a: &[u8], b: &[u8]) -> Result<Vec<u8>, String> {
     mr_difference_inner::<subtype::int8::Int8Ops>(a, b)
 }
+pub fn int8mr_contains_element(a: &[u8], b: &[u8]) -> Result<bool, String> {
+    mr_contains_element_inner::<subtype::int8::Int8Ops>(a, b)
+}
+pub fn int8mr_union(a: &[u8], b: &[u8]) -> Result<Vec<u8>, String> {
+    mr_union_inner::<subtype::int8::Int8Ops>(a, b)
+}
 
 pub fn int4mr_overlaps(a: &[u8], b: &[u8]) -> Result<bool, String> {
     mr_overlaps_inner::<subtype::int4::Int4Ops>(a, b)
 }
 pub fn int4mr_contains_range(a: &[u8], b: &[u8]) -> Result<bool, String> {
     mr_contains_range_inner::<subtype::int4::Int4Ops>(a, b)
+}
+pub fn int4mr_contains_element(a: &[u8], b: &[u8]) -> Result<bool, String> {
+    mr_contains_element_inner::<subtype::int4::Int4Ops>(a, b)
+}
+pub fn int4mr_union(a: &[u8], b: &[u8]) -> Result<Vec<u8>, String> {
+    mr_union_inner::<subtype::int4::Int4Ops>(a, b)
 }
 pub fn int4mr_intersect(a: &[u8], b: &[u8]) -> Result<Vec<u8>, String> {
     mr_intersect_inner::<subtype::int4::Int4Ops>(a, b)
@@ -519,6 +551,12 @@ pub fn datemr_overlaps(a: &[u8], b: &[u8]) -> Result<bool, String> {
 pub fn datemr_contains_range(a: &[u8], b: &[u8]) -> Result<bool, String> {
     mr_contains_range_inner::<subtype::date::DateOps>(a, b)
 }
+pub fn datemr_contains_element(a: &[u8], b: &[u8]) -> Result<bool, String> {
+    mr_contains_element_inner::<subtype::date::DateOps>(a, b)
+}
+pub fn datemr_union(a: &[u8], b: &[u8]) -> Result<Vec<u8>, String> {
+    mr_union_inner::<subtype::date::DateOps>(a, b)
+}
 pub fn datemr_intersect(a: &[u8], b: &[u8]) -> Result<Vec<u8>, String> {
     mr_intersect_inner::<subtype::date::DateOps>(a, b)
 }
@@ -534,6 +572,12 @@ pub fn dtmr_overlaps(a: &[u8], b: &[u8]) -> Result<bool, String> {
 }
 pub fn dtmr_contains_range(a: &[u8], b: &[u8]) -> Result<bool, String> {
     mr_contains_range_inner::<subtype::datetime::DateTimeOps>(a, b)
+}
+pub fn dtmr_contains_element(a: &[u8], b: &[u8]) -> Result<bool, String> {
+    mr_contains_element_inner::<subtype::datetime::DateTimeOps>(a, b)
+}
+pub fn dtmr_union(a: &[u8], b: &[u8]) -> Result<Vec<u8>, String> {
+    mr_union_inner::<subtype::datetime::DateTimeOps>(a, b)
 }
 pub fn dtmr_intersect(a: &[u8], b: &[u8]) -> Result<Vec<u8>, String> {
     mr_intersect_inner::<subtype::datetime::DateTimeOps>(a, b)
