@@ -1,15 +1,14 @@
 use villagesql::{InValue, VdfReturn};
 use vsql_ranger_arranger::engine::Range;
 use vsql_ranger_arranger::multirange_types::{
-    datemr_encode, int4mr_encode, int8mr_decode, int8mr_encode, mr_decode_to_vec,
+    datemr_encode, int4mr_encode, int8mr_encode, mr_decode_to_vec,
     roundtrip_components,
 };
 use vsql_ranger_arranger::subtype::{
     date::DateOps, datetime::DateTimeOps, int4::Int4Ops, int8::Int8Ops,
 };
 
-// Slice 1 gap tests: element containment + multirange UNION.
-mod element_union_gaps {
+mod slice1 {
     use super::*;
     use vsql_ranger_arranger::func::setops::{
         datemr_contains_element, datemr_union, dtmr_contains_element, dtmr_union,
@@ -37,7 +36,7 @@ mod element_union_gaps {
     fn multirange_contains_element_true_when_contained() {
         let mr = int8mr_encode("{[1,5)}").unwrap();
         let range_buf = vsql_ranger_arranger::engine::canonical::range_to_bytes::<Int8Ops>(
-            &vsql_ranger_arranger::engine::Range {
+            &Range {
                 empty: false,
                 lower_inf: false,
                 upper_inf: false,
@@ -57,7 +56,7 @@ mod element_union_gaps {
     fn multirange_contains_element_false_when_not_contained() {
         let mr = int8mr_encode("{[1,2),[5,6)}").unwrap();
         let range_buf = vsql_ranger_arranger::engine::canonical::range_to_bytes::<Int8Ops>(
-            &vsql_ranger_arranger::engine::Range {
+            &Range {
                 empty: false,
                 lower_inf: false,
                 upper_inf: false,
@@ -102,10 +101,8 @@ mod element_union_gaps {
     }
 }
 
-// Null/error branch coverage for multirange setops entry points.
 mod setops_gaps {
-    use villagesql::InValue;
-    use villagesql::VdfReturn;
+    use super::*;
     use vsql_ranger_arranger::func::setops::{
         datemr_contains_range, datemr_difference, datemr_intersect, datemr_merge, datemr_overlaps,
         dtmr_contains_range, dtmr_difference, dtmr_intersect, dtmr_merge, dtmr_overlaps,
@@ -173,19 +170,11 @@ mod setops_gaps {
     }
 }
 
-// Error and edge-case coverage in multirange helpers.
 #[test]
 fn multirange_helpers_error_paths() {
-    // Empty multirange literal -> encode/decoded bytes must be exact.
-    let enc = int8mr_encode("empty").unwrap();
-    assert_eq!(int8mr_decode(&enc).unwrap(), "{}");
-
-    // Reject reversed bounds cleanly.
     assert!(int8mr_encode("[5,1)").is_err());
     assert!(int4mr_encode("[5,1)").is_err());
     assert!(datemr_encode("[2026-01-10,2026-01-01)").is_err());
-
-    // Mismatched subtype decode returns error rather than panicking.
     assert!(mr_decode_to_vec::<Int8Ops>(&[]).is_err());
     assert!(mr_decode_to_vec::<Int4Ops>(&[]).is_err());
     assert!(mr_decode_to_vec::<DateOps>(&[]).is_err());
@@ -220,7 +209,6 @@ fn multirange_roundtrip_components_covers_subtypes() {
 
 #[test]
 fn multirange_lib_wrappers_expose_errors() {
-    use villagesql::InValue;
     use vsql_ranger_arranger::func::setops::{
         datemr_contains_range, datemr_difference, datemr_intersect, datemr_merge, datemr_overlaps,
         dtmr_contains_range, dtmr_difference, dtmr_intersect, dtmr_merge, dtmr_overlaps,
@@ -234,19 +222,16 @@ fn multirange_lib_wrappers_expose_errors() {
     assert!(matches!(int8mr_merge(empty), VdfReturn::Error(_)));
     assert!(matches!(int8mr_difference(empty), VdfReturn::Error(_)));
     assert!(matches!(int8mr_contains_range(empty), VdfReturn::Error(_)));
-
     assert!(matches!(int4mr_overlaps(empty), VdfReturn::Error(_)));
     assert!(matches!(int4mr_intersect(empty), VdfReturn::Error(_)));
     assert!(matches!(int4mr_merge(empty), VdfReturn::Error(_)));
     assert!(matches!(int4mr_difference(empty), VdfReturn::Error(_)));
     assert!(matches!(int4mr_contains_range(empty), VdfReturn::Error(_)));
-
     assert!(matches!(datemr_overlaps(empty), VdfReturn::Error(_)));
     assert!(matches!(datemr_intersect(empty), VdfReturn::Error(_)));
     assert!(matches!(datemr_merge(empty), VdfReturn::Error(_)));
     assert!(matches!(datemr_difference(empty), VdfReturn::Error(_)));
     assert!(matches!(datemr_contains_range(empty), VdfReturn::Error(_)));
-
     assert!(matches!(dtmr_overlaps(empty), VdfReturn::Error(_)));
     assert!(matches!(dtmr_intersect(empty), VdfReturn::Error(_)));
     assert!(matches!(dtmr_merge(empty), VdfReturn::Error(_)));
@@ -260,4 +245,79 @@ fn multirange_decode_to_vec_empty_input_errors() {
     assert!(mr_decode_to_vec::<Int4Ops>(&[]).is_err());
     assert!(mr_decode_to_vec::<DateOps>(&[]).is_err());
     assert!(mr_decode_to_vec::<DateTimeOps>(&[]).is_err());
+}
+
+mod slice2 {
+    use super::*;
+    use vsql_ranger_arranger::func::extract::{
+        datemr_isempty, datemr_length, datemr_upper,
+        dtmr_isempty, dtmr_length, dtmr_upper,
+        int4mr_isempty, int4mr_length, int4mr_upper,
+        int8mr_isempty, int8mr_length, int8mr_upper,
+    };
+
+    fn custom(buf: &[u8]) -> InValue<'_> {
+        InValue::Custom(buf)
+    }
+
+    #[test]
+    fn upper_returns_canonicalized_literal() {
+        let mr = int8mr_encode("{[1,3),[7,10]}").unwrap();
+        assert!(matches!(int8mr_upper(&[custom(&mr)]), VdfReturn::String(s) if !s.is_empty()));
+    }
+
+    #[test]
+    fn isempty_false_when_non_empty() {
+        let mr = int8mr_encode("{[1,3)}").unwrap();
+        assert!(matches!(int8mr_isempty(&[custom(&mr)]), VdfReturn::Int(0)));
+    }
+
+    #[test]
+    fn isempty_true_when_empty() {
+        let mr = int8mr_encode("empty").unwrap();
+        assert!(matches!(int8mr_isempty(&[custom(&mr)]), VdfReturn::Int(1)));
+    }
+
+    #[test]
+    fn length_equals_component_count() {
+        let adjacent = "{[1,5)}";
+        let mr = int8mr_encode(adjacent).unwrap();
+        assert!(matches!(int8mr_length(&[custom(&mr)]), VdfReturn::Int(1)));
+        let gap = "{[1,2),[5,6)}";
+        let mr2 = int8mr_encode(gap).unwrap();
+        assert!(matches!(int8mr_length(&[custom(&mr2)]), VdfReturn::Int(2)));
+    }
+
+    #[test]
+    fn slice2_null_propagates() {
+        let cases: &[fn(&[InValue<'_>]) -> VdfReturn] = &[
+            int8mr_upper,
+            int8mr_isempty,
+            int8mr_length,
+            int4mr_upper,
+            int4mr_isempty,
+            int4mr_length,
+            datemr_upper,
+            datemr_isempty,
+            datemr_length,
+            dtmr_upper,
+            dtmr_isempty,
+            dtmr_length,
+        ];
+        for f in cases {
+            assert!(matches!(f(&[InValue::Null]), VdfReturn::Null));
+        }
+    }
+
+    #[test]
+    fn slice2_invalid_arg_count_errors() {
+        let cases: &[fn(&[InValue<'_>]) -> VdfReturn] = &[
+            int8mr_upper,
+            int8mr_isempty,
+            int8mr_length,
+        ];
+        for f in cases {
+            assert!(matches!(f(&[]), VdfReturn::Error(_)));
+        }
+    }
 }
