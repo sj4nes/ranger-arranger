@@ -26,8 +26,8 @@ jobs:
 
   build:
     name: Build and test
-    needs: filter
-    if: needs.filter.outputs.code == 'true'
+    needs: changelog_skip
+    if: needs.changelog_skip.outputs.code == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout sources
