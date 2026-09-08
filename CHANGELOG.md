@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-09-08
+
 ### Added
 - Proptest coverage for `RANGE_AGG` aggregates across all four subtypes (`int8`, `int4`, `date`, `datetime`) in `tests/proptest_suite.rs`.
 - Fuzz harness coverage for `RANGE_AGG` in `tests/fuzz_harness.rs`.
