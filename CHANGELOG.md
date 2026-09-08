@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Proptest coverage for `RANGE_AGG` aggregates across all four subtypes (`int8`, `int4`, `date`, `datetime`) in `tests/proptest_suite.rs`.
+- Fuzz harness coverage for `RANGE_AGG` in `tests/fuzz_harness.rs`.
+- Coverage slice tests for `func/predicates.rs` (`tests/coverage_slice_predicates.rs`, `tests/coverage_slice_predicates2.rs`): exercises `contains_point`, `contains_element`, `pred_binary`, and `pred_flag` across all subtypes including error paths.
+- Coverage slice tests for `subtype/int4.rs`, `subtype/int8.rs`, `subtype/date.rs`, `subtype/datetime.rs` — all subtype modules now at 97–100% line coverage.
+- Coverage slice tests for `func/construct.rs`, `func/extract.rs`, and `multirange_types.rs`.
+- `coverage` task in `Justfile` for local `cargo llvm-cov` report generation.
+
+### Changed
+- `Justfile` `test` target now skips tests with "fuzz" in the name (`--skip fuzz`); `fuzz` runs as a separate step in `ci`.
+- `Justfile` `ci` target runs `fmt-check clippy test fuzz` (fuzz after the filtered test step).
+- CI coverage step uses `--lib --tests` instead of `--lib` alone, so integration test binaries are included in the coverage calculation.
+
+### Fixed
+- Clippy `unused-imports` warnings in new coverage test files (`coverage_slice_int4.rs`, `coverage_slice_int8.rs`, `coverage_slice_date.rs`, `coverage_slice_datetime.rs`, `coverage_slice_multirange_types.rs`).
+- `normalize_components` made `pub` in `multirange_types.rs` for use by `range_agg` and tests.
+
 ## [0.2.0] - 2026-09-06
 
 ### Added
