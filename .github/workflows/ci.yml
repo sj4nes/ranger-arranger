@@ -7,8 +7,23 @@ on:
     branches: ["main"]
 
 jobs:
+  # Skip CI if the only changed file is CHANGELOG.md
+  filter:
+    runs-on: ubuntu-latest
+    outputs:
+      code: ${{ steps.paths-filter.outputs.code }}
+    steps:
+      - uses: dorny/paths-filter@v3
+        id: paths-filter
+        with:
+          filters: |
+            code:
+              - '!CHANGELOG.md'
+
   build:
     name: Build and test
+    needs: filter
+    if: needs.filter.outputs.code == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout sources
