@@ -8,7 +8,8 @@ on:
 
 jobs:
   # Skip CI if the only changed file is CHANGELOG.md
-  filter:
+  changelog_skip:
+    name: Skip if CHANGELOG is only change
     runs-on: ubuntu-latest
     outputs:
       code: ${{ steps.paths-filter.outputs.code }}
