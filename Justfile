@@ -7,7 +7,7 @@ set shell := ["bash", "-euc"]
 # Default target: run the full local CI gate
 default: ci
 
-# Run the full local CI gate (fmt + clippy + tests + fuzz)
+# Run the full local CI gate (fmt + clippy + tests, then fuzz)
 ci: fmt-check clippy test fuzz
 
 # Format check
@@ -22,9 +22,9 @@ fmt:
 clippy:
     cargo clippy --all-targets --all-features -- -D warnings
 
-# Run all tests (unit + integration + benches)
+# Run all tests (unit + integration), excluding fuzz tests
 test:
-    cargo test --all-targets --all-features
+    cargo test --tests --all-features -- --skip fuzz
 
 # Run the stable fuzz harness
 fuzz:
@@ -124,7 +124,7 @@ test-bump-version:
 # Show help
 help:
     @echo "Available targets:"
-    @echo "  ci            - Run full local CI gate (fmt + clippy + test + fuzz)"
+    @echo "  ci            - Run full local CI gate (fmt + clippy + test)"
     @echo "  fmt-check     - Check code formatting"
     @echo "  fmt           - Format code"
     @echo "  clippy        - Run clippy with all warnings denied"
