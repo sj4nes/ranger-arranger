@@ -551,6 +551,60 @@ fn dtmr_lower_impl(a: &[InValue]) -> VdfReturn {
     multirange_lower(multirange_types::dtmr_decode, "DATETIMEMULTIRANGE")(a)
 }
 
+// ── Slice 2 continued: BOUNDS, LOWER_INC impl shims ──
+
+fn int8mr_bounds_impl(a: &[InValue]) -> VdfReturn {
+    if let Some(ret) = guard_null(a) {
+        return ret;
+    }
+    func::extract::int8mr_bounds(a)
+}
+fn int8mr_lower_inc_impl(a: &[InValue]) -> VdfReturn {
+    if let Some(ret) = guard_null(a) {
+        return ret;
+    }
+    func::extract::int8mr_lower_inc(a)
+}
+
+fn int4mr_bounds_impl(a: &[InValue]) -> VdfReturn {
+    if let Some(ret) = guard_null(a) {
+        return ret;
+    }
+    func::extract::int4mr_bounds(a)
+}
+fn int4mr_lower_inc_impl(a: &[InValue]) -> VdfReturn {
+    if let Some(ret) = guard_null(a) {
+        return ret;
+    }
+    func::extract::int4mr_lower_inc(a)
+}
+
+fn datemr_bounds_impl(a: &[InValue]) -> VdfReturn {
+    if let Some(ret) = guard_null(a) {
+        return ret;
+    }
+    func::extract::datemr_bounds(a)
+}
+fn datemr_lower_inc_impl(a: &[InValue]) -> VdfReturn {
+    if let Some(ret) = guard_null(a) {
+        return ret;
+    }
+    func::extract::datemr_lower_inc(a)
+}
+
+fn dtmr_bounds_impl(a: &[InValue]) -> VdfReturn {
+    if let Some(ret) = guard_null(a) {
+        return ret;
+    }
+    func::extract::dtmr_bounds(a)
+}
+fn dtmr_lower_inc_impl(a: &[InValue]) -> VdfReturn {
+    if let Some(ret) = guard_null(a) {
+        return ret;
+    }
+    func::extract::dtmr_lower_inc(a)
+}
+
 // ── multirange algebra VDF impls ──
 fn int8mr_overlaps_impl(a: &[InValue]) -> VdfReturn {
     if let Some(ret) = guard_null(a) {
@@ -780,6 +834,15 @@ villagesql::extension! {
         func!(dtmr_intersect_impl, "DATETIMEMULTIRANGE_INTERSECT", [custom!("DATETIMEMULTIRANGE"), custom!("DATETIMEMULTIRANGE")] -> custom!("DATETIMEMULTIRANGE"), buffer_size: 0, deterministic: true),
         func!(dtmr_merge_impl, "DATETIMEMULTIRANGE_MERGE", [custom!("DATETIMEMULTIRANGE"), custom!("DATETIMEMULTIRANGE")] -> custom!("DATETIMEMULTIRANGE"), buffer_size: 0, deterministic: true),
         func!(dtmr_difference_impl, "DATETIMEMULTIRANGE_DIFFERENCE", [custom!("DATETIMEMULTIRANGE"), custom!("DATETIMEMULTIRANGE")] -> custom!("DATETIMEMULTIRANGE"), buffer_size: 0, deterministic: true),
+        // Slice 2 continued: BOUNDS, LOWER_INC
+        func!(int8mr_bounds_impl, "INT8MULTIRANGE_BOUNDS", [custom!("INT8MULTIRANGE")] -> Type::String, buffer_size: 0, deterministic: true),
+        func!(int8mr_lower_inc_impl, "INT8MULTIRANGE_LOWER_INC", [custom!("INT8MULTIRANGE")] -> Type::Int, buffer_size: 0, deterministic: true),
+        func!(int4mr_bounds_impl, "INT4MULTIRANGE_BOUNDS", [custom!("INT4MULTIRANGE")] -> Type::String, buffer_size: 0, deterministic: true),
+        func!(int4mr_lower_inc_impl, "INT4MULTIRANGE_LOWER_INC", [custom!("INT4MULTIRANGE")] -> Type::Int, buffer_size: 0, deterministic: true),
+        func!(datemr_bounds_impl, "DATEMULTIRANGE_BOUNDS", [custom!("DATEMULTIRANGE")] -> Type::String, buffer_size: 0, deterministic: true),
+        func!(datemr_lower_inc_impl, "DATEMULTIRANGE_LOWER_INC", [custom!("DATEMULTIRANGE")] -> Type::Int, buffer_size: 0, deterministic: true),
+        func!(dtmr_bounds_impl, "DATETIMEMULTIRANGE_BOUNDS", [custom!("DATETIMEMULTIRANGE")] -> Type::String, buffer_size: 0, deterministic: true),
+        func!(dtmr_lower_inc_impl, "DATETIMEMULTIRANGE_LOWER_INC", [custom!("DATETIMEMULTIRANGE")] -> Type::Int, buffer_size: 0, deterministic: true),
         // multirange aggregation
         func::range_agg::INT8MULTIRANGE_RANGE_AGG_DESC,
         func::range_agg::INT4MULTIRANGE_RANGE_AGG_DESC,

@@ -10,13 +10,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.2.1] - 2026-09-08
 
 ### Added
+- Multirange VDFs: `<MR>_BOUNDS(mr)` → TEXT (span from first lower to last upper, e.g., `{[1,5),[10,15)}` → `[1,15)`) for all four subtypes.
+- Multirange VDFs: `<MR>_LOWER_INC(mr)` → INT (0/1, whether the first component's lower bound is inclusive) for all four subtypes.
+- Proptest coverage for `BOUNDS` and `LOWER_INC` across all four subtypes in `tests/proptest_suite.rs`.
+- Fuzz harness coverage for `BOUNDS` and `LOWER_INC` in `tests/fuzz_harness.rs`.
+- Coverage slice tests for `BOUNDS` and `LOWER_INC` in `tests/coverage_slice_bounds.rs`.
 - Proptest coverage for `RANGE_AGG` aggregates across all four subtypes (`int8`, `int4`, `date`, `datetime`) in `tests/proptest_suite.rs`.
 - Fuzz harness coverage for `RANGE_AGG` in `tests/fuzz_harness.rs`.
 - Coverage slice tests for `func/predicates.rs` (`tests/coverage_slice_predicates.rs`, `tests/coverage_slice_predicates2.rs`): exercises `contains_point`, `contains_element`, `pred_binary`, and `pred_flag` across all subtypes including error paths.
 - Coverage slice tests for `subtype/int4.rs`, `subtype/int8.rs`, `subtype/date.rs`, `subtype/datetime.rs` — all subtype modules now at 97–100% line coverage.
 - Coverage slice tests for `func/construct.rs`, `func/extract.rs`, and `multirange_types.rs`.
 - `coverage` task in `Justfile` for local `cargo llvm-cov` report generation.
-- skip gate if the only thing changed is CHANGELOG in CI
+- Skip gate in CI if the only changed file is `CHANGELOG.md`.
 
 ### Changed
 - `Justfile` `test` target now skips tests with "fuzz" in the name (`--skip fuzz`); `fuzz` runs as a separate step in `ci`.

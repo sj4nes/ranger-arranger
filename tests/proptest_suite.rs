@@ -9,9 +9,14 @@
 use proptest::prelude::*;
 use std::collections::BTreeSet;
 use villagesql::InValue;
+use vsql_ranger_arranger::engine::RangeSubtypeOps;
 use vsql_ranger_arranger::engine::{
     Range, adjacent, canonicalize, contains_point, contains_range, difference, intersect, merge,
     overlaps,
+};
+use vsql_ranger_arranger::func::extract::{
+    datemr_bounds, datemr_lower_inc, dtmr_bounds, dtmr_lower_inc, int4mr_bounds, int4mr_lower_inc,
+    int8mr_bounds, int8mr_lower_inc,
 };
 use vsql_ranger_arranger::multirange_types::{
     datemr_contains_range, datemr_decode, datemr_difference, datemr_encode, datemr_intersect,
@@ -736,5 +741,294 @@ fn prop_dtmr_range_agg_matches_lifted() {
             "DATETIMEMULTIRANGE_RANGE_AGG failed for: {} vs {}",
             lit_a, lit_b
         );
+    }
+}
+
+// ---- Multirange BOUNDS and LOWER_INC proptests ----
+
+proptest! {
+    /// INT8MULTIRANGE_BOUNDS matches naive decoding of first lower / last upper.
+    #[test]
+    fn prop_int8mr_bounds_naive(
+        components in prop::collection::vec(arb_range_literal(), 1..10),
+    ) {
+        let lit = format!("{{{}}}", components.join(","));
+        let comps = roundtrip_components::<Int8Ops>(&lit).unwrap();
+        prop_assume!(!comps.is_empty());
+
+        let enc = int8mr_encode(&lit).unwrap();
+        let got = int8mr_bounds(&[InValue::Custom(&enc)]);
+
+        let got_str = match got {
+            villagesql::VdfReturn::String(s) => s,
+            _ => panic!("expected String, got {:?}", got),
+        };
+
+        let first = comps.first().unwrap();
+        let last = comps.last().unwrap();
+
+        let lb = if first.lower_inf { "(" } else { "[" };
+        let rb = if last.upper_inf {
+            ")"
+        } else if last.upper_inc {
+            "]"
+        } else {
+            ")"
+        };
+        let lo = if first.lower_inf {
+            "-infinity".to_string()
+        } else {
+            Int8Ops::from_ordinal(first.lower).unwrap()
+        };
+        let hi = if last.upper_inf {
+            "+infinity".to_string()
+        } else {
+            Int8Ops::from_ordinal(last.upper).unwrap()
+        };
+        let expected = format!("{lb}{lo},{hi}{rb}");
+
+        prop_assert_eq!(got_str, expected);
+    }
+}
+
+proptest! {
+    /// INT8MULTIRANGE_LOWER_INC matches first component's lower_inc.
+    #[test]
+    fn prop_int8mr_lower_inc_naive(
+        components in prop::collection::vec(arb_range_literal(), 1..10),
+    ) {
+        let lit = format!("{{{}}}", components.join(","));
+        let comps = roundtrip_components::<Int8Ops>(&lit).unwrap();
+        prop_assume!(!comps.is_empty());
+
+        let enc = int8mr_encode(&lit).unwrap();
+        let got = int_ret(int8mr_lower_inc(&[InValue::Custom(&enc)]));
+
+        let first = comps.first().unwrap();
+        let expected = if first.empty { 0 } else { first.lower_inc as i64 };
+
+        prop_assert_eq!(got, expected);
+    }
+}
+
+proptest! {
+    /// INT4MULTIRANGE_BOUNDS matches naive decoding of first lower / last upper.
+    #[test]
+    fn prop_int4mr_bounds_naive(
+        components in prop::collection::vec(arb_range_literal(), 1..10),
+    ) {
+        let lit = format!("{{{}}}", components.join(","));
+        let comps = roundtrip_components::<Int4Ops>(&lit).unwrap();
+        prop_assume!(!comps.is_empty());
+
+        let enc = int4mr_encode(&lit).unwrap();
+        let got = int4mr_bounds(&[InValue::Custom(&enc)]);
+
+        let got_str = match got {
+            villagesql::VdfReturn::String(s) => s,
+            _ => panic!("expected String, got {:?}", got),
+        };
+
+        let first = comps.first().unwrap();
+        let last = comps.last().unwrap();
+
+        let lb = if first.lower_inf { "(" } else { "[" };
+        let rb = if last.upper_inf {
+            ")"
+        } else if last.upper_inc {
+            "]"
+        } else {
+            ")"
+        };
+        let lo = if first.lower_inf {
+            "-infinity".to_string()
+        } else {
+            Int4Ops::from_ordinal(first.lower).unwrap()
+        };
+        let hi = if last.upper_inf {
+            "+infinity".to_string()
+        } else {
+            Int4Ops::from_ordinal(last.upper).unwrap()
+        };
+        let expected = format!("{lb}{lo},{hi}{rb}");
+
+        prop_assert_eq!(got_str, expected);
+    }
+}
+
+proptest! {
+    /// INT4MULTIRANGE_LOWER_INC matches first component's lower_inc.
+    #[test]
+    fn prop_int4mr_lower_inc_naive(
+        components in prop::collection::vec(arb_range_literal(), 1..10),
+    ) {
+        let lit = format!("{{{}}}", components.join(","));
+        let comps = roundtrip_components::<Int4Ops>(&lit).unwrap();
+        prop_assume!(!comps.is_empty());
+
+        let enc = int4mr_encode(&lit).unwrap();
+        let got = int_ret(int4mr_lower_inc(&[InValue::Custom(&enc)]));
+
+        let first = comps.first().unwrap();
+        let expected = if first.empty { 0 } else { first.lower_inc as i64 };
+
+        prop_assert_eq!(got, expected);
+    }
+}
+
+#[test]
+fn prop_datemr_bounds_naive() {
+    let lits = [
+        "{[2020-01-01,2020-06-01)}",
+        "{[2020-01-01,2020-06-01),[2020-07-01,2020-12-31)}",
+        "{[2020-01-01,2020-12-31)}",
+    ];
+    for lit in &lits {
+        let enc = datemr_encode(lit).unwrap();
+        let got = str_ret(datemr_bounds(&[InValue::Custom(&enc)]));
+
+        let comps = roundtrip_components::<DateOps>(lit).unwrap();
+
+        let first = comps.first().unwrap();
+        let last = comps.last().unwrap();
+
+        let lb = if first.lower_inf { "(" } else { "[" };
+        let rb = if last.upper_inf {
+            ")"
+        } else if last.upper_inc {
+            "]"
+        } else {
+            ")"
+        };
+        let lo = if first.lower_inf {
+            "-infinity".to_string()
+        } else {
+            DateOps::from_ordinal(first.lower).unwrap()
+        };
+        let hi = if last.upper_inf {
+            "+infinity".to_string()
+        } else {
+            DateOps::from_ordinal(last.upper).unwrap()
+        };
+        let expected = format!("{lb}{lo},{hi}{rb}");
+
+        assert_eq!(got, expected, "DATEMULTIRANGE_BOUNDS failed for: {}", lit);
+    }
+}
+
+#[test]
+fn prop_datemr_lower_inc_naive() {
+    let lits = [
+        "{[2020-01-01,2020-06-01)}",
+        "{[2020-01-01,2020-06-01],}",
+        "{[2020-01-01,2020-06-01),[2020-07-01,2020-12-31)}",
+        "{[2020-01-01,2020-12-31)}",
+    ];
+    for lit in &lits {
+        let enc = datemr_encode(lit).unwrap();
+        let got = int_ret(datemr_lower_inc(&[InValue::Custom(&enc)]));
+
+        let comps = roundtrip_components::<DateOps>(lit).unwrap();
+
+        let first = comps.first().unwrap();
+        let expected = if first.empty {
+            0
+        } else {
+            first.lower_inc as i64
+        };
+
+        assert_eq!(
+            got, expected,
+            "DATEMULTIRANGE_LOWER_INC failed for: {}",
+            lit
+        );
+    }
+}
+
+#[test]
+fn prop_dtmr_bounds_naive() {
+    let lits = [
+        "{[2020-01-01 00:00:00,2020-06-01 00:00:00)}",
+        "{[2020-01-01 00:00:00,2020-06-01 00:00:00),[2020-07-01 00:00:00,2020-12-31 00:00:00)}",
+        "{[2020-01-01 00:00:00,2020-12-31 00:00:00)}",
+    ];
+    for lit in &lits {
+        let enc = dtmr_encode(lit).unwrap();
+        let got = str_ret(dtmr_bounds(&[InValue::Custom(&enc)]));
+
+        let comps = roundtrip_components::<DateTimeOps>(lit).unwrap();
+
+        let first = comps.first().unwrap();
+        let last = comps.last().unwrap();
+
+        let lb = if first.lower_inf { "(" } else { "[" };
+        let rb = if last.upper_inf {
+            ")"
+        } else if last.upper_inc {
+            "]"
+        } else {
+            ")"
+        };
+        let lo = if first.lower_inf {
+            "-infinity".to_string()
+        } else {
+            DateTimeOps::from_ordinal(first.lower).unwrap()
+        };
+        let hi = if last.upper_inf {
+            "+infinity".to_string()
+        } else {
+            DateTimeOps::from_ordinal(last.upper).unwrap()
+        };
+        let expected = format!("{lb}{lo},{hi}{rb}");
+
+        assert_eq!(
+            got, expected,
+            "DATETIMEMULTIRANGE_BOUNDS failed for: {}",
+            lit
+        );
+    }
+}
+
+#[test]
+fn prop_dtmr_lower_inc_naive() {
+    let lits = [
+        "{[2020-01-01 00:00:00,2020-06-01 00:00:00)}",
+        "{[2020-01-01 00:00:00,2020-06-01 00:00:00],}",
+        "{[2020-01-01 00:00:00,2020-06-01 00:00:00),[2020-07-01 00:00:00,2020-12-31 00:00:00)}",
+        "{[2020-01-01 00:00:00,2020-12-31 00:00:00)}",
+    ];
+    for lit in &lits {
+        let enc = dtmr_encode(lit).unwrap();
+        let got = int_ret(dtmr_lower_inc(&[InValue::Custom(&enc)]));
+
+        let comps = roundtrip_components::<DateTimeOps>(lit).unwrap();
+
+        let first = comps.first().unwrap();
+        let expected = if first.empty {
+            0
+        } else {
+            first.lower_inc as i64
+        };
+
+        assert_eq!(
+            got, expected,
+            "DATETIMEMULTIRANGE_LOWER_INC failed for: {}",
+            lit
+        );
+    }
+}
+
+// Helper functions for proptests
+fn str_ret(v: villagesql::VdfReturn) -> String {
+    match v {
+        villagesql::VdfReturn::String(s) => s,
+        other => panic!("expected String, got {:?}", other),
+    }
+}
+
+fn int_ret(v: villagesql::VdfReturn) -> i64 {
+    match v {
+        villagesql::VdfReturn::Int(i) => i,
+        other => panic!("expected Int, got {:?}", other),
     }
 }

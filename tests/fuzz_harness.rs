@@ -402,6 +402,86 @@ fn fuzz_multirange_algebra() {
     }
 }
 
+// ---- Multirange BOUNDS and LOWER_INC fuzz ----
+
+#[test]
+fn fuzz_multirange_bounds_and_lower_inc() {
+    let int_lits = [
+        "empty",
+        "{}",
+        "{[1,5)}",
+        "{[10,20)}",
+        "{[1,5),[10,15)}",
+        "{[1,5),[7,12),[20,30)}",
+        "{[-infinity,5)}",
+        "{[1,+infinity)}",
+    ];
+    let date_lits = [
+        "{}",
+        "empty",
+        "{[2020-01-01,2020-06-01)}",
+        "{[2020-01-01,2020-06-01),[2020-07-01,2020-12-31)}",
+    ];
+    let dt_lits = [
+        "{}",
+        "empty",
+        "{[2020-01-01 00:00:00,2020-06-01 00:00:00)}",
+        "{[2020-01-01 00:00:00,2020-06-01 00:00:00),[2020-07-01 00:00:00,2020-12-31 00:00:00)}",
+    ];
+
+    // INT8
+    for &lit in &int_lits {
+        if let Ok(enc) = int8mr_encode(lit) {
+            let _ =
+                vsql_ranger_arranger::func::extract::int8mr_bounds(&[villagesql::InValue::Custom(
+                    &enc,
+                )]);
+            let _ = vsql_ranger_arranger::func::extract::int8mr_lower_inc(&[
+                villagesql::InValue::Custom(&enc),
+            ]);
+        }
+    }
+
+    // INT4
+    for &lit in &int_lits {
+        if let Ok(enc) = int4mr_encode(lit) {
+            let _ =
+                vsql_ranger_arranger::func::extract::int4mr_bounds(&[villagesql::InValue::Custom(
+                    &enc,
+                )]);
+            let _ = vsql_ranger_arranger::func::extract::int4mr_lower_inc(&[
+                villagesql::InValue::Custom(&enc),
+            ]);
+        }
+    }
+
+    // DATE
+    for &lit in &date_lits {
+        if let Ok(enc) = datemr_encode(lit) {
+            let _ =
+                vsql_ranger_arranger::func::extract::datemr_bounds(&[villagesql::InValue::Custom(
+                    &enc,
+                )]);
+            let _ = vsql_ranger_arranger::func::extract::datemr_lower_inc(&[
+                villagesql::InValue::Custom(&enc),
+            ]);
+        }
+    }
+
+    // DATETIME
+    for &lit in &dt_lits {
+        if let Ok(enc) = dtmr_encode(lit) {
+            let _ =
+                vsql_ranger_arranger::func::extract::dtmr_bounds(&[villagesql::InValue::Custom(
+                    &enc,
+                )]);
+            let _ = vsql_ranger_arranger::func::extract::dtmr_lower_inc(&[
+                villagesql::InValue::Custom(&enc),
+            ]);
+        }
+    }
+}
+
 // ---- Multirange range_agg fuzz ----
 
 #[test]

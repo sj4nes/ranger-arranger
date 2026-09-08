@@ -300,6 +300,111 @@ pub fn dtmr_length(args: &[InValue]) -> VdfReturn {
     multirange_length::<subtype::datetime::DateTimeOps>()(args)
 }
 
+// ── Slice 2 continued: multirange BOUNDS, LOWER_INC ───────────────────────
+
+/// `<MR>_BOUNDS(mr)` -> TEXT — the span from first lower to last upper, e.g. `[1,15)`.
+pub fn multirange_bounds<T: RangeSubtypeOps>(type_name: &str) -> impl Fn(&[InValue]) -> VdfReturn {
+    move |args: &[InValue]| -> VdfReturn {
+        match args.first() {
+            Some(InValue::Custom(a)) => match multirange_types::mr_decode_to_vec::<T>(a) {
+                Ok(comps) => {
+                    let first = match comps.first() {
+                        Some(r) => r,
+                        None => return VdfReturn::null(),
+                    };
+                    let last = match comps.last() {
+                        Some(r) => r,
+                        None => return VdfReturn::null(),
+                    };
+                    if first.empty || last.empty {
+                        return VdfReturn::null();
+                    }
+                    let lb = if first.lower_inf { "(" } else { "[" };
+                    let rb = if last.upper_inf {
+                        ")"
+                    } else if last.upper_inc {
+                        "]"
+                    } else {
+                        ")"
+                    };
+                    let lo = if first.lower_inf {
+                        "-infinity".to_string()
+                    } else {
+                        match T::from_ordinal(first.lower) {
+                            Ok(s) => s,
+                            Err(e) => return VdfReturn::error(e),
+                        }
+                    };
+                    let hi = if last.upper_inf {
+                        "+infinity".to_string()
+                    } else {
+                        match T::from_ordinal(last.upper) {
+                            Ok(s) => s,
+                            Err(e) => return VdfReturn::error(e),
+                        }
+                    };
+                    VdfReturn::string(format!("{lb}{lo},{hi}{rb}"))
+                }
+                Err(e) => VdfReturn::error(e),
+            },
+            Some(InValue::Null) => VdfReturn::null(),
+            _ => VdfReturn::error(format!("{type_name}_BOUNDS: expected (custom)")),
+        }
+    }
+}
+
+/// `<MR>_LOWER_INC(mr)` -> INT (0/1) — whether the first component's lower bound is inclusive.
+pub fn multirange_lower_inc<T: RangeSubtypeOps>() -> impl Fn(&[InValue]) -> VdfReturn {
+    move |args: &[InValue]| -> VdfReturn {
+        match args.first() {
+            Some(InValue::Custom(a)) => match multirange_types::mr_decode_to_vec::<T>(a) {
+                Ok(comps) => {
+                    let first = match comps.first() {
+                        Some(r) => r,
+                        None => return VdfReturn::int(0),
+                    };
+                    VdfReturn::int(if first.empty {
+                        0
+                    } else {
+                        first.lower_inc as i64
+                    })
+                }
+                Err(e) => VdfReturn::error(e),
+            },
+            Some(InValue::Null) => VdfReturn::null(),
+            _ => VdfReturn::error("MULTIRANGE_LOWER_INC: expected (custom)"),
+        }
+    }
+}
+
+pub fn int8mr_bounds(args: &[InValue]) -> VdfReturn {
+    multirange_bounds::<subtype::int8::Int8Ops>("INT8MULTIRANGE")(args)
+}
+pub fn int8mr_lower_inc(args: &[InValue]) -> VdfReturn {
+    multirange_lower_inc::<subtype::int8::Int8Ops>()(args)
+}
+
+pub fn int4mr_bounds(args: &[InValue]) -> VdfReturn {
+    multirange_bounds::<subtype::int4::Int4Ops>("INT4MULTIRANGE")(args)
+}
+pub fn int4mr_lower_inc(args: &[InValue]) -> VdfReturn {
+    multirange_lower_inc::<subtype::int4::Int4Ops>()(args)
+}
+
+pub fn datemr_bounds(args: &[InValue]) -> VdfReturn {
+    multirange_bounds::<subtype::date::DateOps>("DATEMULTIRANGE")(args)
+}
+pub fn datemr_lower_inc(args: &[InValue]) -> VdfReturn {
+    multirange_lower_inc::<subtype::date::DateOps>()(args)
+}
+
+pub fn dtmr_bounds(args: &[InValue]) -> VdfReturn {
+    multirange_bounds::<subtype::datetime::DateTimeOps>("DATETIMEMULTIRANGE")(args)
+}
+pub fn dtmr_lower_inc(args: &[InValue]) -> VdfReturn {
+    multirange_lower_inc::<subtype::datetime::DateTimeOps>()(args)
+}
+
 // ── Slice 3: multirange element accessors ──
 
 pub fn multirange_nth<T: RangeSubtypeOps>(type_name: &str) -> impl Fn(&[InValue]) -> VdfReturn {
