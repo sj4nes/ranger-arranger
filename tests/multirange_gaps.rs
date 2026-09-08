@@ -1,14 +1,12 @@
 /// Unit-style checks for the multirange accessors/predicates.
 mod slice2 {
     use villagesql::{InValue, VdfReturn};
+    use vsql_ranger_arranger::func::extract::{
+        datemr_length, datemr_upper, dtmr_length, dtmr_upper, int4mr_length, int4mr_upper,
+        int8mr_isempty, int8mr_length, int8mr_upper,
+    };
     use vsql_ranger_arranger::multirange_types::{
         datemr_encode, dtmr_encode, int4mr_encode, int8mr_encode,
-    };
-    use vsql_ranger_arranger::func::extract::{
-        datemr_length, datemr_upper,
-        dtmr_length, dtmr_upper,
-        int4mr_length, int4mr_upper,
-        int8mr_isempty, int8mr_length, int8mr_upper,
     };
 
     #[test]
@@ -41,7 +39,10 @@ mod slice2 {
     #[test]
     fn empty_multirange_returns_null_upper() {
         let bytes = int8mr_encode("{}").unwrap();
-        assert!(matches!(int8mr_upper(&[InValue::Custom(bytes.as_slice())]), VdfReturn::Null));
+        assert!(matches!(
+            int8mr_upper(&[InValue::Custom(bytes.as_slice())]),
+            VdfReturn::Null
+        ));
     }
 
     #[test]
@@ -59,8 +60,7 @@ mod slice2 {
 
     #[test]
     fn datemr_surface_matches_int8mr() {
-        let bytes = datemr_encode("{[2026-01-01,2026-01-03),[2026-01-07,2026-01-10)}")
-            .unwrap();
+        let bytes = datemr_encode("{[2026-01-01,2026-01-03),[2026-01-07,2026-01-10)}").unwrap();
         assert!(matches!(
             datemr_upper(&[InValue::Custom(bytes.as_slice())]),
             VdfReturn::String(s) if s == "2026-01-10"
@@ -73,8 +73,10 @@ mod slice2 {
 
     #[test]
     fn dtmr_surface_matches_int8mr() {
-        let bytes = dtmr_encode("{[2026-01-01 00:00:00,2026-01-03 00:00:00),[2026-01-07 00:00:00,2026-01-10 00:00:00)}")
-            .unwrap();
+        let bytes = dtmr_encode(
+            "{[2026-01-01 00:00:00,2026-01-03 00:00:00),[2026-01-07 00:00:00,2026-01-10 00:00:00)}",
+        )
+        .unwrap();
         let out = dtmr_upper(&[InValue::Custom(bytes.as_slice())]);
         eprintln!("DEBUG dtmr_upper={:?}", out);
         assert!(matches!(
@@ -91,11 +93,9 @@ mod slice2 {
 /// Slice 3: multirange element accessor `NTH`.
 mod slice3 {
     use villagesql::{InValue, VdfReturn};
+    use vsql_ranger_arranger::func::extract::{datemr_nth, dtmr_nth, int4mr_nth, int8mr_nth};
     use vsql_ranger_arranger::multirange_types::{
         datemr_encode, dtmr_encode, int4mr_encode, int8mr_encode,
-    };
-    use vsql_ranger_arranger::func::extract::{
-        datemr_nth, dtmr_nth, int4mr_nth, int8mr_nth,
     };
 
     #[test]
@@ -132,8 +132,7 @@ mod slice3 {
 
     #[test]
     fn datemr_nth_returns_component() {
-        let bytes = datemr_encode("{[2026-01-01,2026-01-03),[2026-01-07,2026-01-10)}")
-            .unwrap();
+        let bytes = datemr_encode("{[2026-01-01,2026-01-03),[2026-01-07,2026-01-10)}").unwrap();
         assert!(matches!(
             datemr_nth(&[InValue::Int(1), InValue::Custom(bytes.as_slice())]),
             VdfReturn::Binary(_)
@@ -142,8 +141,10 @@ mod slice3 {
 
     #[test]
     fn dtmr_nth_returns_component() {
-        let bytes = dtmr_encode("{[2026-01-01 00:00:00,2026-01-03 00:00:00),[2026-01-07 00:00:00,2026-01-10 00:00:00)}")
-            .unwrap();
+        let bytes = dtmr_encode(
+            "{[2026-01-01 00:00:00,2026-01-03 00:00:00),[2026-01-07 00:00:00,2026-01-10 00:00:00)}",
+        )
+        .unwrap();
         assert!(matches!(
             dtmr_nth(&[InValue::Int(0), InValue::Custom(bytes.as_slice())]),
             VdfReturn::Binary(_)
@@ -155,11 +156,10 @@ mod slice3 {
 mod slice4 {
     use villagesql::{InValue, VdfReturn};
     use vsql_ranger_arranger::func::range_agg::{
-        datemr_range_agg_accumulate, datemr_range_agg_clear, datemr_range_agg_result,
+        MrAggState, datemr_range_agg_accumulate, datemr_range_agg_clear, datemr_range_agg_result,
         dtmr_range_agg_accumulate, dtmr_range_agg_clear, dtmr_range_agg_result,
         int4mr_range_agg_accumulate, int4mr_range_agg_clear, int4mr_range_agg_result,
         int8mr_range_agg_accumulate, int8mr_range_agg_clear, int8mr_range_agg_result,
-        MrAggState,
     };
     use vsql_ranger_arranger::multirange_types::{
         datemr_encode, dtmr_encode, int4mr_encode, int8mr_encode, mr_decode_to_vec,
@@ -171,11 +171,15 @@ mod slice4 {
         int8mr_range_agg_clear(&mut state);
         int8mr_range_agg_accumulate(
             &mut state,
-            &[InValue::Custom(int8mr_encode("{[1,3)}").unwrap().as_slice())],
+            &[InValue::Custom(
+                int8mr_encode("{[1,3)}").unwrap().as_slice(),
+            )],
         );
         int8mr_range_agg_accumulate(
             &mut state,
-            &[InValue::Custom(int8mr_encode("{[7,10)}").unwrap().as_slice())],
+            &[InValue::Custom(
+                int8mr_encode("{[7,10)}").unwrap().as_slice(),
+            )],
         );
         let out = int8mr_range_agg_result(&state);
         assert!(matches!(out, VdfReturn::Binary(_)));
@@ -183,7 +187,8 @@ mod slice4 {
             VdfReturn::Binary(b) => b,
             _ => unreachable!(),
         };
-        let comps = mr_decode_to_vec::<vsql_ranger_arranger::subtype::int8::Int8Ops>(&bytes).unwrap();
+        let comps =
+            mr_decode_to_vec::<vsql_ranger_arranger::subtype::int8::Int8Ops>(&bytes).unwrap();
         assert_eq!(comps.len(), 2);
         assert_eq!(comps[0].lower, 1);
         assert_eq!(comps[0].upper, 3);
@@ -197,11 +202,15 @@ mod slice4 {
         int4mr_range_agg_clear(&mut state);
         int4mr_range_agg_accumulate(
             &mut state,
-            &[InValue::Custom(int4mr_encode("{[1,3)}").unwrap().as_slice())],
+            &[InValue::Custom(
+                int4mr_encode("{[1,3)}").unwrap().as_slice(),
+            )],
         );
         int4mr_range_agg_accumulate(
             &mut state,
-            &[InValue::Custom(int4mr_encode("{[7,10)}").unwrap().as_slice())],
+            &[InValue::Custom(
+                int4mr_encode("{[7,10)}").unwrap().as_slice(),
+            )],
         );
         let out = int4mr_range_agg_result(&state);
         assert!(matches!(out, VdfReturn::Binary(_)));
@@ -209,7 +218,8 @@ mod slice4 {
             VdfReturn::Binary(b) => b,
             _ => unreachable!(),
         };
-        let comps = mr_decode_to_vec::<vsql_ranger_arranger::subtype::int4::Int4Ops>(&bytes).unwrap();
+        let comps =
+            mr_decode_to_vec::<vsql_ranger_arranger::subtype::int4::Int4Ops>(&bytes).unwrap();
         assert_eq!(comps.len(), 2);
         assert_eq!(comps[0].lower, 1);
         assert_eq!(comps[0].upper, 3);
@@ -223,11 +233,19 @@ mod slice4 {
         datemr_range_agg_clear(&mut state);
         datemr_range_agg_accumulate(
             &mut state,
-            &[InValue::Custom(datemr_encode("{[2026-01-01,2026-01-03)}").unwrap().as_slice())],
+            &[InValue::Custom(
+                datemr_encode("{[2026-01-01,2026-01-03)}")
+                    .unwrap()
+                    .as_slice(),
+            )],
         );
         datemr_range_agg_accumulate(
             &mut state,
-            &[InValue::Custom(datemr_encode("{[2026-01-07,2026-01-10)}").unwrap().as_slice())],
+            &[InValue::Custom(
+                datemr_encode("{[2026-01-07,2026-01-10)}")
+                    .unwrap()
+                    .as_slice(),
+            )],
         );
         let out = datemr_range_agg_result(&state);
         assert!(matches!(out, VdfReturn::Binary(_)));
@@ -235,7 +253,8 @@ mod slice4 {
             VdfReturn::Binary(b) => b,
             _ => unreachable!(),
         };
-        let comps = mr_decode_to_vec::<vsql_ranger_arranger::subtype::date::DateOps>(&bytes).unwrap();
+        let comps =
+            mr_decode_to_vec::<vsql_ranger_arranger::subtype::date::DateOps>(&bytes).unwrap();
         assert_eq!(comps.len(), 2);
         assert_eq!(comps[0].lower, 20454);
         assert_eq!(comps[0].upper, 20456);
@@ -249,11 +268,19 @@ mod slice4 {
         dtmr_range_agg_clear(&mut state);
         dtmr_range_agg_accumulate(
             &mut state,
-            &[InValue::Custom(dtmr_encode("{[2026-01-01 00:00:00,2026-01-03 00:00:00)}").unwrap().as_slice())],
+            &[InValue::Custom(
+                dtmr_encode("{[2026-01-01 00:00:00,2026-01-03 00:00:00)}")
+                    .unwrap()
+                    .as_slice(),
+            )],
         );
         dtmr_range_agg_accumulate(
             &mut state,
-            &[InValue::Custom(dtmr_encode("{[2026-01-07 00:00:00,2026-01-10 00:00:00)}").unwrap().as_slice())],
+            &[InValue::Custom(
+                dtmr_encode("{[2026-01-07 00:00:00,2026-01-10 00:00:00)}")
+                    .unwrap()
+                    .as_slice(),
+            )],
         );
         let out = dtmr_range_agg_result(&state);
         assert!(matches!(out, VdfReturn::Binary(_)));
@@ -261,7 +288,9 @@ mod slice4 {
             VdfReturn::Binary(b) => b,
             _ => unreachable!(),
         };
-        let comps = mr_decode_to_vec::<vsql_ranger_arranger::subtype::datetime::DateTimeOps>(&bytes).unwrap();
+        let comps =
+            mr_decode_to_vec::<vsql_ranger_arranger::subtype::datetime::DateTimeOps>(&bytes)
+                .unwrap();
         assert_eq!(comps.len(), 2);
         assert_eq!(comps[0].lower, 1767225600000000);
         assert_eq!(comps[0].upper, 1767398400000000);

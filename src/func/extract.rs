@@ -199,19 +199,18 @@ pub fn multirange_upper<T: RangeSubtypeOps>() -> impl Fn(&[InValue]) -> VdfRetur
 pub fn multirange_upper_inc(type_name: &str) -> impl Fn(&[InValue]) -> VdfReturn {
     move |args: &[InValue]| -> VdfReturn {
         match args.first() {
-            Some(InValue::Custom(a)) => match multirange_types::mr_decode_to_vec::<
-                subtype::int8::Int8Ops,
-            >(a)
-            {
-                Ok(comps) => {
-                    let last = match comps.last() {
-                        Some(r) => r,
-                        None => return VdfReturn::int(0),
-                    };
-                    VdfReturn::int(if last.empty { 0 } else { last.upper_inc as i64 })
+            Some(InValue::Custom(a)) => {
+                match multirange_types::mr_decode_to_vec::<subtype::int8::Int8Ops>(a) {
+                    Ok(comps) => {
+                        let last = match comps.last() {
+                            Some(r) => r,
+                            None => return VdfReturn::int(0),
+                        };
+                        VdfReturn::int(if last.empty { 0 } else { last.upper_inc as i64 })
+                    }
+                    Err(e) => VdfReturn::error(e),
                 }
-                Err(e) => VdfReturn::error(e),
-            },
+            }
             Some(InValue::Null) => VdfReturn::null(),
             _ => VdfReturn::error(format!("{type_name}_UPPER_INC: expected (custom)")),
         }
@@ -303,27 +302,17 @@ pub fn dtmr_length(args: &[InValue]) -> VdfReturn {
 
 // ── Slice 3: multirange element accessors ──
 
-pub fn multirange_nth<T: RangeSubtypeOps>(
-    type_name: &str,
-) -> impl Fn(&[InValue]) -> VdfReturn {
+pub fn multirange_nth<T: RangeSubtypeOps>(type_name: &str) -> impl Fn(&[InValue]) -> VdfReturn {
     move |args: &[InValue]| -> VdfReturn {
         let idx = match args.first() {
             Some(InValue::Int(i)) => *i as usize,
             Some(InValue::Null) => return VdfReturn::null(),
-            _ => {
-                return VdfReturn::error(format!(
-                    "{type_name}_NTH: expected (integer, custom)"
-                ))
-            }
+            _ => return VdfReturn::error(format!("{type_name}_NTH: expected (integer, custom)")),
         };
         let bytes = match args.get(1) {
             Some(InValue::Custom(a)) => a,
             Some(InValue::Null) => return VdfReturn::null(),
-            _ => {
-                return VdfReturn::error(format!(
-                    "{type_name}_NTH: expected (integer, custom)"
-                ))
-            }
+            _ => return VdfReturn::error(format!("{type_name}_NTH: expected (integer, custom)")),
         };
         match multirange_types::mr_decode_to_vec::<T>(bytes) {
             Ok(comps) => {

@@ -334,4 +334,3 @@ pub fn total_cmp(a: &Range, b: &Range) -> Ordering {
     };
     ord(a).cmp(&ord(b))
 }
-

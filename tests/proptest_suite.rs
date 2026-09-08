@@ -8,6 +8,7 @@
 
 use proptest::prelude::*;
 use std::collections::BTreeSet;
+use villagesql::InValue;
 use vsql_ranger_arranger::engine::{
     Range, adjacent, canonicalize, contains_point, contains_range, difference, intersect, merge,
     overlaps,
@@ -596,6 +597,144 @@ fn prop_dtmr_algebra_matches_lifted() {
             "DATETIMEMULTIRANGE difference failed for: {} vs {}",
             lit_a,
             lit_b
+        );
+    }
+}
+
+// ---- Multirange aggregation proptests ----
+
+proptest! {
+    /// INT8MULTIRANGE_RANGE_AGG matches naive concatenation->normalize.
+    #[test]
+    fn prop_int8mr_range_agg_matches_naive(
+        lit_a in arb_multirange_literal(),
+        lit_b in arb_multirange_literal()
+    ) {
+        let enc_a = int8mr_encode(&lit_a).unwrap();
+        let enc_b = int8mr_encode(&lit_b).unwrap();
+
+        let mut state = vsql_ranger_arranger::func::range_agg::MrAggState::default();
+        vsql_ranger_arranger::func::range_agg::int8mr_range_agg_clear(&mut state);
+        vsql_ranger_arranger::func::range_agg::int8mr_range_agg_accumulate(&mut state, &[InValue::Custom(&enc_a)]);
+        vsql_ranger_arranger::func::range_agg::int8mr_range_agg_accumulate(&mut state, &[InValue::Custom(&enc_b)]);
+        let out = vsql_ranger_arranger::func::range_agg::int8mr_range_agg_result(&state);
+
+        let got_buf = match out {
+            villagesql::VdfReturn::Binary(b) => b,
+            villagesql::VdfReturn::Null => vec![],
+            _ => return Err(prop::test_runner::TestCaseError::Reject("unexpected range_agg result".into())),
+        };
+        let got = mr_decode_to_vec::<Int8Ops>(&got_buf).unwrap();
+
+        let a_comps = roundtrip_components::<Int8Ops>(&lit_a).unwrap();
+        let b_comps = roundtrip_components::<Int8Ops>(&lit_b).unwrap();
+        let expected = lift_merge::<Int8Ops>(&a_comps, &b_comps);
+
+        prop_assert_eq!(got, expected);
+    }
+}
+
+proptest! {
+    /// INT4MULTIRANGE_RANGE_AGG matches naive concatenation->normalize.
+    #[test]
+    fn prop_int4mr_range_agg_matches_naive(
+        lit_a in arb_multirange_literal(),
+        lit_b in arb_multirange_literal()
+    ) {
+        let enc_a = int4mr_encode(&lit_a).unwrap();
+        let enc_b = int4mr_encode(&lit_b).unwrap();
+
+        let mut state = vsql_ranger_arranger::func::range_agg::MrAggState::default();
+        vsql_ranger_arranger::func::range_agg::int4mr_range_agg_clear(&mut state);
+        vsql_ranger_arranger::func::range_agg::int4mr_range_agg_accumulate(&mut state, &[InValue::Custom(&enc_a)]);
+        vsql_ranger_arranger::func::range_agg::int4mr_range_agg_accumulate(&mut state, &[InValue::Custom(&enc_b)]);
+        let out = vsql_ranger_arranger::func::range_agg::int4mr_range_agg_result(&state);
+
+        let got_buf = match out {
+            villagesql::VdfReturn::Binary(b) => b,
+            villagesql::VdfReturn::Null => vec![],
+            _ => return Err(prop::test_runner::TestCaseError::Reject("unexpected range_agg result".into())),
+        };
+        let got = mr_decode_to_vec::<Int4Ops>(&got_buf).unwrap();
+
+        let a_comps = roundtrip_components::<Int4Ops>(&lit_a).unwrap();
+        let b_comps = roundtrip_components::<Int4Ops>(&lit_b).unwrap();
+        let expected = lift_merge::<Int4Ops>(&a_comps, &b_comps);
+
+        prop_assert_eq!(got, expected);
+    }
+}
+
+#[test]
+fn prop_datemr_range_agg_matches_lifted() {
+    for (lit_a, lit_b) in date_mr_cases() {
+        let enc_a = datemr_encode(lit_a).unwrap();
+        let enc_b = datemr_encode(lit_b).unwrap();
+
+        let mut state = vsql_ranger_arranger::func::range_agg::MrAggState::default();
+        vsql_ranger_arranger::func::range_agg::datemr_range_agg_clear(&mut state);
+        vsql_ranger_arranger::func::range_agg::datemr_range_agg_accumulate(
+            &mut state,
+            &[InValue::Custom(&enc_a)],
+        );
+        vsql_ranger_arranger::func::range_agg::datemr_range_agg_accumulate(
+            &mut state,
+            &[InValue::Custom(&enc_b)],
+        );
+        let out = vsql_ranger_arranger::func::range_agg::datemr_range_agg_result(&state);
+
+        let got_buf = match out {
+            villagesql::VdfReturn::Binary(b) => b,
+            villagesql::VdfReturn::Null => vec![],
+            _ => panic!("unexpected range_agg result"),
+        };
+        let got = mr_decode_to_vec::<DateOps>(&got_buf).unwrap();
+
+        let a_comps = mr_decode_to_vec::<DateOps>(&datemr_encode(lit_a).unwrap()).unwrap();
+        let b_comps = mr_decode_to_vec::<DateOps>(&datemr_encode(lit_b).unwrap()).unwrap();
+        let expected = lift_merge::<DateOps>(&a_comps, &b_comps);
+
+        assert_eq!(
+            got, expected,
+            "DATEMULTIRANGE_RANGE_AGG failed for: {} vs {}",
+            lit_a, lit_b
+        );
+    }
+}
+
+#[test]
+fn prop_dtmr_range_agg_matches_lifted() {
+    for (lit_a, lit_b) in dt_mr_cases() {
+        let enc_a = dtmr_encode(lit_a).unwrap();
+        let enc_b = dtmr_encode(lit_b).unwrap();
+
+        let mut state = vsql_ranger_arranger::func::range_agg::MrAggState::default();
+        vsql_ranger_arranger::func::range_agg::dtmr_range_agg_clear(&mut state);
+        vsql_ranger_arranger::func::range_agg::dtmr_range_agg_accumulate(
+            &mut state,
+            &[InValue::Custom(&enc_a)],
+        );
+        vsql_ranger_arranger::func::range_agg::dtmr_range_agg_accumulate(
+            &mut state,
+            &[InValue::Custom(&enc_b)],
+        );
+        let out = vsql_ranger_arranger::func::range_agg::dtmr_range_agg_result(&state);
+
+        let got_buf = match out {
+            villagesql::VdfReturn::Binary(b) => b,
+            villagesql::VdfReturn::Null => vec![],
+            _ => panic!("unexpected range_agg result"),
+        };
+        let got = mr_decode_to_vec::<DateTimeOps>(&got_buf).unwrap();
+
+        let a_comps = mr_decode_to_vec::<DateTimeOps>(&dtmr_encode(lit_a).unwrap()).unwrap();
+        let b_comps = mr_decode_to_vec::<DateTimeOps>(&dtmr_encode(lit_b).unwrap()).unwrap();
+        let expected = lift_merge::<DateTimeOps>(&a_comps, &b_comps);
+
+        assert_eq!(
+            got, expected,
+            "DATETIMEMULTIRANGE_RANGE_AGG failed for: {} vs {}",
+            lit_a, lit_b
         );
     }
 }

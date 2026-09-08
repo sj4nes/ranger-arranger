@@ -401,3 +401,124 @@ fn fuzz_multirange_algebra() {
         }
     }
 }
+
+// ---- Multirange range_agg fuzz ----
+
+#[test]
+fn fuzz_multirange_range_agg() {
+    let int_lits = [
+        "empty",
+        "{}",
+        "{[1,5)}",
+        "{[10,20)}",
+        "{[1,5),[10,20)}",
+        "{[1,5),[3,7)}",
+        "{[1,5),(5,10)}",
+        "{[1,5),[6,10)}",
+        "{[1,3),[5,7),[9,11)}",
+    ];
+
+    for &lit_a in &int_lits {
+        for &lit_b in &int_lits {
+            let Ok(a) = int8mr_encode(lit_a) else {
+                continue;
+            };
+            let Ok(b) = int8mr_encode(lit_b) else {
+                continue;
+            };
+
+            let mut state = vsql_ranger_arranger::func::range_agg::MrAggState::default();
+            vsql_ranger_arranger::func::range_agg::int8mr_range_agg_clear(&mut state);
+            vsql_ranger_arranger::func::range_agg::int8mr_range_agg_accumulate(
+                &mut state,
+                &[villagesql::InValue::Custom(&a)],
+            );
+            vsql_ranger_arranger::func::range_agg::int8mr_range_agg_accumulate(
+                &mut state,
+                &[villagesql::InValue::Custom(&b)],
+            );
+            let out = vsql_ranger_arranger::func::range_agg::int8mr_range_agg_result(&state);
+
+            let bytes = match out {
+                villagesql::VdfReturn::Binary(b) => b,
+                villagesql::VdfReturn::Null => vec![],
+                _ => continue,
+            };
+            let _ = int8mr_decode(&bytes);
+            let _ = int8mr_encode(&int8mr_decode(&bytes).unwrap_or_default());
+        }
+    }
+
+    let date_lits = [
+        "{}",
+        "empty",
+        "{[2020-01-01,2020-06-01)}",
+        "{[2020-07-01,2020-12-31)}",
+        "{[2020-01-01,2020-06-01),[2020-07-01,2020-12-31)}",
+    ];
+    let dt_lits = [
+        "{}",
+        "empty",
+        "{[2020-01-01 00:00:00,2020-06-01 00:00:00)}",
+        "{[2020-07-01 00:00:00,2020-12-31 00:00:00)}",
+        "{[2020-01-01 00:00:00,2020-06-01 00:00:00),[2020-07-01 00:00:00,2020-12-31 00:00:00)}",
+    ];
+
+    for &lit_a in &date_lits {
+        for &lit_b in &date_lits {
+            let Ok(a) = datemr_encode(lit_a) else {
+                continue;
+            };
+            let Ok(b) = datemr_encode(lit_b) else {
+                continue;
+            };
+
+            let mut state = vsql_ranger_arranger::func::range_agg::MrAggState::default();
+            vsql_ranger_arranger::func::range_agg::datemr_range_agg_clear(&mut state);
+            vsql_ranger_arranger::func::range_agg::datemr_range_agg_accumulate(
+                &mut state,
+                &[villagesql::InValue::Custom(&a)],
+            );
+            vsql_ranger_arranger::func::range_agg::datemr_range_agg_accumulate(
+                &mut state,
+                &[villagesql::InValue::Custom(&b)],
+            );
+            let out = vsql_ranger_arranger::func::range_agg::datemr_range_agg_result(&state);
+
+            let bytes = match out {
+                villagesql::VdfReturn::Binary(b) => b,
+                villagesql::VdfReturn::Null => vec![],
+                _ => continue,
+            };
+            let _ = datemr_decode(&bytes);
+            let _ = datemr_encode(&datemr_decode(&bytes).unwrap_or_default());
+        }
+    }
+
+    for &lit_a in &dt_lits {
+        for &lit_b in &dt_lits {
+            let Ok(a) = dtmr_encode(lit_a) else { continue };
+            let Ok(b) = dtmr_encode(lit_b) else { continue };
+
+            let mut state = vsql_ranger_arranger::func::range_agg::MrAggState::default();
+            vsql_ranger_arranger::func::range_agg::dtmr_range_agg_clear(&mut state);
+            vsql_ranger_arranger::func::range_agg::dtmr_range_agg_accumulate(
+                &mut state,
+                &[villagesql::InValue::Custom(&a)],
+            );
+            vsql_ranger_arranger::func::range_agg::dtmr_range_agg_accumulate(
+                &mut state,
+                &[villagesql::InValue::Custom(&b)],
+            );
+            let out = vsql_ranger_arranger::func::range_agg::dtmr_range_agg_result(&state);
+
+            let bytes = match out {
+                villagesql::VdfReturn::Binary(b) => b,
+                villagesql::VdfReturn::Null => vec![],
+                _ => continue,
+            };
+            let _ = dtmr_decode(&bytes);
+            let _ = dtmr_encode(&dtmr_decode(&bytes).unwrap_or_default());
+        }
+    }
+}

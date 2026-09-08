@@ -7,7 +7,7 @@
 use crate::engine::RangeSubtypeOps;
 use crate::multirange_types;
 use crate::subtype;
-use villagesql::{agg_func, custom, InValue, VdfReturn};
+use villagesql::{InValue, VdfReturn, agg_func, custom};
 
 // ── accumulator ──
 
@@ -32,19 +32,20 @@ fn mr_agg_accumulate<T: RangeSubtypeOps>(state: &mut MrAggState, args: &[InValue
     let Ok(new_comps) = multirange_types::mr_decode_to_vec::<T>(bytes) else {
         return;
     };
-    let Ok(new_bytes) = multirange_types::mr_encode_components::<T>(&new_comps) else {
-        return;
-    };
 
     state.buf = match state.buf.take() {
-        None => Some(new_bytes),
+        None => multirange_types::mr_encode_components::<T>(&new_comps).ok(),
         Some(cur) => {
             let Ok(cur_comps) = multirange_types::mr_decode_to_vec::<T>(&cur) else {
                 return;
             };
             let mut merged = cur_comps;
             merged.extend(new_comps);
-            multirange_types::mr_encode_components::<T>(&merged).ok()
+            let normalized = match multirange_types::normalize_components::<T>(merged) {
+                Ok(n) => n,
+                Err(_) => return,
+            };
+            multirange_types::mr_encode_components::<T>(&normalized).ok()
         }
     };
 }
@@ -100,32 +101,28 @@ pub fn dtmr_range_agg_result(state: &MrAggState) -> VdfReturn {
 
 // ── descriptors registered in lib.rs ──
 
-pub const INT8MULTIRANGE_RANGE_AGG_DESC: villagesql::FuncDescriptor =
-    agg_func!(int8mr_range_agg_result, "int8multirange_range_agg", [custom!("INT8MULTIRANGE")] -> custom!("INT8MULTIRANGE"),
+pub const INT8MULTIRANGE_RANGE_AGG_DESC: villagesql::FuncDescriptor = agg_func!(int8mr_range_agg_result, "int8multirange_range_agg", [custom!("INT8MULTIRANGE")] -> custom!("INT8MULTIRANGE"),
         state: MrAggState,
         clear: int8mr_range_agg_clear,
         accumulate: int8mr_range_agg_accumulate,
         buffer_size: 64,
         deterministic: true);
 
-pub const INT4MULTIRANGE_RANGE_AGG_DESC: villagesql::FuncDescriptor =
-    agg_func!(int4mr_range_agg_result, "int4multirange_range_agg", [custom!("INT4MULTIRANGE")] -> custom!("INT4MULTIRANGE"),
+pub const INT4MULTIRANGE_RANGE_AGG_DESC: villagesql::FuncDescriptor = agg_func!(int4mr_range_agg_result, "int4multirange_range_agg", [custom!("INT4MULTIRANGE")] -> custom!("INT4MULTIRANGE"),
         state: MrAggState,
         clear: int4mr_range_agg_clear,
         accumulate: int4mr_range_agg_accumulate,
         buffer_size: 64,
         deterministic: true);
 
-pub const DATEMULTIRANGE_RANGE_AGG_DESC: villagesql::FuncDescriptor =
-    agg_func!(datemr_range_agg_result, "datemultirange_range_agg", [custom!("DATEMULTIRANGE")] -> custom!("DATEMULTIRANGE"),
+pub const DATEMULTIRANGE_RANGE_AGG_DESC: villagesql::FuncDescriptor = agg_func!(datemr_range_agg_result, "datemultirange_range_agg", [custom!("DATEMULTIRANGE")] -> custom!("DATEMULTIRANGE"),
         state: MrAggState,
         clear: datemr_range_agg_clear,
         accumulate: datemr_range_agg_accumulate,
         buffer_size: 64,
         deterministic: true);
 
-pub const DATETIMEMULTIRANGE_RANGE_AGG_DESC: villagesql::FuncDescriptor =
-    agg_func!(dtmr_range_agg_result, "datetimemultirange_range_agg", [custom!("DATETIMEMULTIRANGE")] -> custom!("DATETIMEMULTIRANGE"),
+pub const DATETIMEMULTIRANGE_RANGE_AGG_DESC: villagesql::FuncDescriptor = agg_func!(dtmr_range_agg_result, "datetimemultirange_range_agg", [custom!("DATETIMEMULTIRANGE")] -> custom!("DATETIMEMULTIRANGE"),
         state: MrAggState,
         clear: dtmr_range_agg_clear,
         accumulate: dtmr_range_agg_accumulate,

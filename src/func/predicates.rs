@@ -1,8 +1,8 @@
 // Predicates (FR-6.1-6.7). Per-type so the engine decodes bytes with the right
 // endpoint width. AD-4: func! over custom!, NULL-explicit, deterministic: true.
-use crate::engine::canonical::to_range;
 use crate::engine::Range;
 use crate::engine::RangeSubtypeOps;
+use crate::engine::canonical::to_range;
 use crate::subtype;
 use villagesql::{InValue, VdfReturn};
 
@@ -54,13 +54,13 @@ pub fn int8_contains_point(args: &[InValue]) -> VdfReturn {
         _ => return VdfReturn::null(),
     };
     match to_range::<subtype::int8::Int8Ops>(range_buf) {
-        Ok(range) => {
-            VdfReturn::int(if range.empty || !crate::engine::contains_point(&range, point as i128) {
+        Ok(range) => VdfReturn::int(
+            if range.empty || !crate::engine::contains_point(&range, point as i128) {
                 0
             } else {
                 1
-            })
-        }
+            },
+        ),
         Err(_) => VdfReturn::null(),
     }
 }
@@ -92,13 +92,13 @@ pub fn int4_contains_point(args: &[InValue]) -> VdfReturn {
         _ => return VdfReturn::null(),
     };
     match to_range::<subtype::int4::Int4Ops>(range_buf) {
-        Ok(range) => {
-            VdfReturn::int(if range.empty || !crate::engine::contains_point(&range, point as i128) {
+        Ok(range) => VdfReturn::int(
+            if range.empty || !crate::engine::contains_point(&range, point as i128) {
                 0
             } else {
                 1
-            })
-        }
+            },
+        ),
         Err(_) => VdfReturn::null(),
     }
 }
@@ -130,13 +130,13 @@ pub fn date_contains_point(args: &[InValue]) -> VdfReturn {
         _ => return VdfReturn::null(),
     };
     match to_range::<subtype::date::DateOps>(range_buf) {
-        Ok(range) => {
-            VdfReturn::int(if range.empty || !crate::engine::contains_point(&range, point as i128) {
+        Ok(range) => VdfReturn::int(
+            if range.empty || !crate::engine::contains_point(&range, point as i128) {
                 0
             } else {
                 1
-            })
-        }
+            },
+        ),
         Err(_) => VdfReturn::null(),
     }
 }
@@ -168,13 +168,13 @@ pub fn datetime_contains_point(args: &[InValue]) -> VdfReturn {
         _ => return VdfReturn::null(),
     };
     match to_range::<subtype::datetime::DateTimeOps>(range_buf) {
-        Ok(range) => {
-            VdfReturn::int(if range.empty || !crate::engine::contains_point(&range, point as i128) {
+        Ok(range) => VdfReturn::int(
+            if range.empty || !crate::engine::contains_point(&range, point as i128) {
                 0
             } else {
                 1
-            })
-        }
+            },
+        ),
         Err(_) => VdfReturn::null(),
     }
 }
