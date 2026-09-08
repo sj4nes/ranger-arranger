@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Coverage slice tests for `subtype/int4.rs`, `subtype/int8.rs`, `subtype/date.rs`, `subtype/datetime.rs` — all subtype modules now at 97–100% line coverage.
 - Coverage slice tests for `func/construct.rs`, `func/extract.rs`, and `multirange_types.rs`.
 - `coverage` task in `Justfile` for local `cargo llvm-cov` report generation.
+- skip gate if the only thing changed is CHANGELOG in CI
 
 ### Changed
 - `Justfile` `test` target now skips tests with "fuzz" in the name (`--skip fuzz`); `fuzz` runs as a separate step in `ci`.
