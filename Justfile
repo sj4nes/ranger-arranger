@@ -30,6 +30,13 @@ test:
 fuzz:
     cargo test --test fuzz_harness
 
+# Generate coverage report (lcov + HTML), ignoring vendored SDK code
+coverage:
+    cargo llvm-cov --tests --all-features --ignore-filename-regex 'vendor/|villagesql/' --fail-under-lines 50 --lcov --output-path lcov.info
+    cargo llvm-cov --tests --all-features --ignore-filename-regex 'vendor/|villagesql/' --html --output-dir target/llvm-cov/html
+    @echo "==> Coverage report: target/llvm-cov/html/index.html"
+    @echo "==> lcov data: lcov.info"
+
 # Run benchmarks (criterion)
 bench:
     cargo bench
@@ -130,6 +137,7 @@ help:
     @echo "  clippy        - Run clippy with all warnings denied"
     @echo "  test          - Run all tests"
     @echo "  fuzz          - Run stable fuzz harness"
+    @echo "  coverage      - Generate coverage report (lcov + HTML)"
     @echo "  bench         - Run criterion benchmarks"
     @echo "  outdated      - Check for outdated dependencies"
     @echo "  audit         - Run security audit (deny unmaintained)"
